@@ -1187,24 +1187,26 @@ function novoPedido() {
 }
 
 function editarPedido(id) {
-  const p = allPedidos.find(x => x.id === id);
-  if (!p) return;
-  editingId = id;
-  document.getElementById('pm-title').textContent = `✏️ Pedido #${id}`;
-  document.getElementById('pm-cli').value    = p.cliente_nome || '';
-  document.getElementById('pm-tel').value    = p.telefone     || '';
-  document.getElementById('pm-itens').value  = p.itens        || '';
-  document.getElementById('pm-total').value  = p.total        || '';
-  document.getElementById('pm-pgto').value   = p.pagamento    || '';
-  document.getElementById('pm-st').value     = p.status       || 'novo';
-  document.getElementById('pm-obs').value    = p.observacoes  || p.observacao   || '';
-  document.getElementById('pm-mesa').value   = p.mesa         || p.numero_mesa  || '';
-  document.getElementById('pm-end').value    = p.endereco     || p.endereco_entrega || '';
-  // Entrega
-  const entr = p.tipo_entrega || p.entrega || '';
-  document.getElementById('pm-entr').value = entr;
-  onEntregaChange(entr);
-  openModal('pedido-modal');
+  solicitarSenha(() => {
+    const p = allPedidos.find(x => x.id === id);
+    if (!p) return;
+    editingId = id;
+    document.getElementById('pm-title').textContent = `✏️ Pedido #${id}`;
+    document.getElementById('pm-cli').value    = p.cliente_nome || '';
+    document.getElementById('pm-tel').value    = p.telefone     || '';
+    document.getElementById('pm-itens').value  = p.itens        || '';
+    document.getElementById('pm-total').value  = p.total        || '';
+    document.getElementById('pm-pgto').value   = p.pagamento    || '';
+    document.getElementById('pm-st').value     = p.status       || 'novo';
+    document.getElementById('pm-obs').value    = p.observacoes  || p.observacao   || '';
+    document.getElementById('pm-mesa').value   = p.mesa         || p.numero_mesa  || '';
+    document.getElementById('pm-end').value    = p.endereco     || p.endereco_entrega || '';
+    // Entrega
+    const entr = p.tipo_entrega || p.entrega || '';
+    document.getElementById('pm-entr').value = entr;
+    onEntregaChange(entr);
+    openModal('pedido-modal');
+  });
 }
 
 async function salvarPedido() {
