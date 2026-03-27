@@ -1296,6 +1296,8 @@ CLIENTE
 Nome:     ${p.cliente_nome || '—'}
 Telefone: ${p.telefone || '—'}
 Entrega:  ${p.tipo_entrega || p.entrega || '—'}
+${(p.endereco || p.endereco_entrega) ? `Endereço: ${p.endereco || p.endereco_entrega}` : ''}
+${(p.mesa || p.numero_mesa) ? `Mesa:     ${p.mesa || p.numero_mesa}` : ''}
 --------------------------------
 ITENS
 ${formatarItens(p.itens, 999) || '—'}
