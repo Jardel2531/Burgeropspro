@@ -1084,7 +1084,7 @@ function filtrarPed() {
   const pg   = document.getElementById('f-pg')?.value || '';
   const entr = document.getElementById('f-entr')?.value || '';
   const f    = allPedidos.filter(p => {
-    if (q   && !p.cliente_nome?.toLowerCase().includes(q) && !p.telefone?.includes(q)) return false;
+    if (q   && !p.cliente_nome?.toLowerCase().includes(q) && !p.telefone?.includes(q) && !(p.cliente_tel||'').includes(q)) return false;
     if (st  && p.status !== st) return false;
     if (pg  && p.pagamento !== pg) return false;
     if (entr && (p.entrega || '') !== entr) return false;
@@ -1107,10 +1107,11 @@ function renderKanban(ps) {
       </div>
       <div class="kanban-body">
         ${its.length ? its.map(p => {
-          const isMesa     = (p.entrega || '').startsWith('Mesa');
-          const isDelivery = (p.entrega || '') === 'Delivery';
-          const mesa       = p.numero_mesa || '';
-          const endereco   = p.endereco_entrega || p.observacao || '';
+          const entrega    = p.tipo_entrega || p.entrega || '';
+          const isMesa     = entrega.startsWith('Mesa');
+          const isDelivery = entrega === 'Delivery';
+          const mesa       = p.mesa || p.numero_mesa || '';
+          const endereco   = p.endereco || p.endereco_entrega || p.observacao || '';
           const pgBg = {'PIX':'#2dc653','Dinheiro':'#f5a623','Cartão de Crédito':'#3a86ff','Cartão de Débito':'#00b4d8'}[p.pagamento] || '#888';
           return `
           <div class="pedido-card" onclick="editarPedido(${p.id})">
@@ -1122,7 +1123,7 @@ function renderKanban(ps) {
             ${p.telefone ? `<div style="font-size:11px;color:var(--text2);margin-bottom:2px">📞 ${p.telefone}</div>` : ''}
             ${isMesa && mesa ? `<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(245,166,35,.15);color:var(--gold);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;margin-bottom:4px">🪑 ${mesa}</div>` : ''}
             ${isDelivery && endereco ? `<div style="font-size:11px;color:var(--cyan);margin-bottom:4px">📍 ${endereco.substring(0,48)}${endereco.length>48?'…':''}</div>` : ''}
-            <div class="pit" style="margin-top:2px">${(p.itens || '').substring(0, 52)}${(p.itens || '').length > 52 ? '…' : ''}</div>
+            <div class="pit" style="margin-top:2px">${formatarItens(p.itens, 52)}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
               <div class="pval">R$ ${Number(p.total).toFixed(2)}</div>
               ${p.pagamento ? `<span style="font-size:10px;font-weight:800;background:${pgBg}22;color:${pgBg};border:1px solid ${pgBg}44;border-radius:8px;padding:2px 7px">${p.pagamento}</span>` : ''}
@@ -1147,7 +1148,7 @@ function renderTabelaPed(ps) {
       return `<tr>
         <td><b style="color:var(--gold)">#${p.id}</b></td>
         <td><b>${p.cliente_nome}</b><br><span style="font-size:11px;color:var(--text2)">${p.telefone || ''}</span></td>
-        <td style="max-width:180px;font-size:12px">${p.itens || ''}</td>
+        <td style="max-width:180px;font-size:12px">${formatarItens(p.itens, 60)}</td>
         <td><b style="color:var(--green)">R$ ${Number(p.total).toFixed(2)}</b></td>
         <td style="font-size:12px">${p.pagamento || ''}</td>
         <td><span class="badge ${cfg.badge}">${cfg.label}</span></td>
@@ -1169,18 +1170,20 @@ function onEntregaChange(val) {
 }
 
 function novoPedido() {
-  editingId = null;
-  document.getElementById('pm-title').textContent = '➕ Novo Pedido';
-  ['pm-cli','pm-tel','pm-itens','pm-obs','pm-mesa','pm-end'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
+  solicitarSenha(() => {
+    editingId = null;
+    document.getElementById('pm-title').textContent = '➕ Novo Pedido';
+    ['pm-cli','pm-tel','pm-itens','pm-obs','pm-mesa','pm-end'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value = '';
+    });
+    document.getElementById('pm-total').value = '';
+    document.getElementById('pm-pgto').value  = '';
+    document.getElementById('pm-entr').value  = '';
+    document.getElementById('pm-st').value    = 'novo';
+    document.getElementById('pm-mesa-group').style.display = 'none';
+    document.getElementById('pm-end-group').style.display  = 'none';
+    openModal('pedido-modal');
   });
-  document.getElementById('pm-total').value = '';
-  document.getElementById('pm-pgto').value  = '';
-  document.getElementById('pm-entr').value  = '';
-  document.getElementById('pm-st').value    = 'novo';
-  document.getElementById('pm-mesa-group').style.display = 'none';
-  document.getElementById('pm-end-group').style.display  = 'none';
-  openModal('pedido-modal');
 }
 
 function editarPedido(id) {
@@ -1194,11 +1197,11 @@ function editarPedido(id) {
   document.getElementById('pm-total').value  = p.total        || '';
   document.getElementById('pm-pgto').value   = p.pagamento    || '';
   document.getElementById('pm-st').value     = p.status       || 'novo';
-  document.getElementById('pm-obs').value    = p.observacao   || '';
-  document.getElementById('pm-mesa').value   = p.numero_mesa  || '';
-  document.getElementById('pm-end').value    = p.endereco_entrega || '';
+  document.getElementById('pm-obs').value    = p.observacoes  || p.observacao   || '';
+  document.getElementById('pm-mesa').value   = p.mesa         || p.numero_mesa  || '';
+  document.getElementById('pm-end').value    = p.endereco     || p.endereco_entrega || '';
   // Entrega
-  const entr = p.entrega || '';
+  const entr = p.tipo_entrega || p.entrega || '';
   document.getElementById('pm-entr').value = entr;
   onEntregaChange(entr);
   openModal('pedido-modal');
@@ -1290,12 +1293,12 @@ Status: ${cfg.label}
 CLIENTE
 Nome:     ${p.cliente_nome || '—'}
 Telefone: ${p.telefone || '—'}
-Entrega:  ${p.entrega || '—'}
+Entrega:  ${p.tipo_entrega || p.entrega || '—'}
 --------------------------------
 ITENS
-${p.itens || '—'}
+${formatarItens(p.itens, 999) || '—'}
 --------------------------------
-${p.observacao ? `OBS: ${p.observacao}\n--------------------------------\n` : ''}Total:    R$ ${Number(p.total).toFixed(2)}
+${(p.observacoes||p.observacao) ? `OBS: ${p.observacoes||p.observacao}\n--------------------------------\n` : ''}Total:    R$ ${Number(p.total).toFixed(2)}
 Pagamento: ${p.pagamento || '—'}
 ================================
        Obrigado pela preferência!
@@ -2022,6 +2025,23 @@ function renderConfig() {
           </div>
         </div>
       </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:16px">🔒 Senha de Administrador</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">Protege ações sensíveis como criar pedidos manualmente e deletar registros. Padrão: <b style="color:var(--gold)">1234</b></div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Senha atual</label>
+          <input type="password" class="input-field" id="cfg-senha-atual" placeholder="••••••••" style="max-width:260px">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Nova senha</label>
+          <input type="password" class="input-field" id="cfg-senha-nova" placeholder="••••••••" style="max-width:260px">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Confirmar nova senha</label>
+          <input type="password" class="input-field" id="cfg-senha-conf" placeholder="••••••••" style="max-width:260px">
+        </div>
+        <button class="btn btn-gold" onclick="alterarSenhaAdmin()">🔑 Alterar Senha</button>
+      </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px">
         <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:12px">ℹ️ Sessão Ativa</div>
         <div style="font-size:13px;line-height:2;color:var(--text2)">
@@ -2036,6 +2056,37 @@ function renderConfig() {
         </div>
       </div>
     </div>`;
+}
+
+function formatarItens(itens, maxLen) {
+  if (!itens) return '';
+  const s = String(itens).trim();
+  // Se começar com [ é JSON antigo — extrai nomes
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      const txt = arr.map(i => `${i.quantidade||i.qty||1}x ${i.nome}`).join(', ');
+      return txt.length > maxLen ? txt.substring(0, maxLen) + '…' : txt;
+    } catch(e) {}
+  }
+  return s.length > maxLen ? s.substring(0, maxLen) + '…' : s;
+}
+
+function alterarSenhaAdmin() {
+  const atual  = document.getElementById('cfg-senha-atual').value;
+  const nova   = document.getElementById('cfg-senha-nova').value.trim();
+  const conf   = document.getElementById('cfg-senha-conf').value.trim();
+  const stored = localStorage.getItem('admin_senha') || '1234';
+  if (!atual)           { toast('Informe a senha atual!', 'error'); return; }
+  if (atual !== stored) { toast('Senha atual incorreta!', 'error'); return; }
+  if (!nova)            { toast('Informe a nova senha!', 'error'); return; }
+  if (nova.length < 4)  { toast('Mínimo 4 caracteres!', 'error'); return; }
+  if (nova !== conf)    { toast('As senhas não coincidem!', 'error'); return; }
+  localStorage.setItem('admin_senha', nova);
+  ['cfg-senha-atual','cfg-senha-nova','cfg-senha-conf'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  toast('✅ Senha alterada com sucesso!', 'success');
 }
 
 function salvarN8n() {
