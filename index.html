@@ -1282,19 +1282,21 @@ function imprimirPedido(id) {
   const p = allPedidos.find(x => x.id === id);
   if (!p) return;
   const cfg  = ST[p.status] || ST.novo;
-  // FIX: campo de data corrigido de p.created_at para p.criado_em
-  const data = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : '-';
+  const agora = new Date();
+  const dataImpressao = agora.toLocaleString('pt-BR');
+  const dataPedido = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : dataImpressao;
   document.getElementById('print-content').innerHTML =
 `================================
        ${SESSION?.nome_empresa || 'BurgerOps Pro'}
 ================================
 PEDIDO #${p.id}
-Data: ${data}
+Pedido em: ${dataPedido}
+Impresso:  ${dataImpressao}
 Status: ${cfg.label}
 --------------------------------
 CLIENTE
 Nome:     ${p.cliente_nome || '—'}
-Telefone: ${p.telefone || '—'}
+Telefone: ${p.telefone || p.cliente_tel || '—'}
 Entrega:  ${p.tipo_entrega || p.entrega || '—'}
 ${(p.endereco || p.endereco_entrega) ? `Endereço: ${p.endereco || p.endereco_entrega}` : ''}
 ${(p.mesa || p.numero_mesa) ? `Mesa:     ${p.mesa || p.numero_mesa}` : ''}
