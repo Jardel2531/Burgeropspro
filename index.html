@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BurgerOps Pro — SaaS</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- qrcodejs removido: substituído por geração via Google Charts API -->
+<style>
+/* ============================================================
+   DESIGN TOKENS
+============================================================ */
+:root {
+  --bg:     #0e0e0e;
+  --bg2:    #161616;
+  --bg3:    #1e1e1e;
+  --bg4:    #252525;
+  --gold:   #f5a623;
+  --gold2:  #ffe08a;
+  --red:    #e63946;
+  --green:  #2dc653;
+  --blue:   #3a86ff;
+  --cyan:   #00b4d8;
+  --text:   #f0f0f0;
+  --text2:  #888;
+  --border: #2a2a2a;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; overflow: hidden; }
+
+/* ============================================================
+   TELA DE LOGIN
+============================================================ */
+#login-screen {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  overflow: hidden;
+}
+#login-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, rgba(245,166,35,.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+#login-screen::after {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245,166,35,.06) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.login-box {
+  position: relative; z-index: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 44px;
+  width: 420px; max-width: 95vw;
+  box-shadow: 0 32px 80px rgba(0,0,0,.6);
+  animation: loginAppear .4s cubic-bezier(.4,0,.2,1) both;
+}
+@keyframes loginAppear {
+  from { opacity: 0; transform: translateY(24px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.login-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.login-logo .burger { font-size: 52px; display: block; animation: bob 3s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+.login-logo .brand {
+  font-family: 'Bebas Neue';
+  font-size: 36px; letter-spacing: 2px;
+  color: var(--gold);
+  text-shadow: 0 0 32px rgba(245,166,35,.3);
+  display: block; line-height: 1;
+  margin-top: 6px;
+}
+.login-logo .brand-sub {
+  font-size: 11px; color: var(--text2);
+  letter-spacing: 3px; text-transform: uppercase;
+  margin-top: 4px; display: block;
+}
+
+.login-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--text2);
+  display: block; margin-bottom: 6px;
+}
+.login-input-wrap { position: relative; margin-bottom: 16px; }
+.login-input-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; color: var(--text2); pointer-events: none;
+}
+.login-input {
+  width: 100%;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px 12px 42px;
+  font-family: 'Nunito'; font-size: 14px; color: var(--text);
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.login-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(245,166,35,.1);
+}
+.login-input::placeholder { color: var(--text2); }
+
+.login-btn {
+  width: 100%;
+  background: var(--gold); border: none; border-radius: 10px;
+  padding: 14px; font-family: 'Nunito'; font-size: 15px; font-weight: 900;
+  color: #000; cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  margin-top: 4px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.login-btn:hover:not(:disabled) {
+  background: var(--gold2);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(245,166,35,.3);
+}
+.login-btn:active:not(:disabled) { transform: scale(.98); }
+.login-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.login-alert {
+  border-radius: 10px; padding: 12px 16px;
+  font-size: 13px; font-weight: 700; margin-bottom: 16px;
+  display: none; align-items: flex-start; gap: 10px;
+  line-height: 1.5;
+}
+.login-alert.show { display: flex; }
+.login-alert.error {
+  background: rgba(230,57,70,.12); border: 1px solid rgba(230,57,70,.35);
+  color: #ff6b75;
+}
+.login-alert.warning {
+  background: rgba(245,166,35,.12); border: 1px solid rgba(245,166,35,.35);
+  color: var(--gold);
+}
+.login-alert.success {
+  background: rgba(45,198,83,.12); border: 1px solid rgba(45,198,83,.35);
+  color: var(--green);
+}
+.login-alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+.login-footer {
+  text-align: center; margin-top: 28px;
+  font-size: 11px; color: var(--text2);
+  border-top: 1px solid var(--border); padding-top: 20px;
+}
+
+.btn-spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(0,0,0,.2);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   TOPBAR USER CHIP
+============================================================ */
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px 5px 8px;
+  cursor: default;
+}
+.user-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--gold); color: #000;
+  font-size: 11px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+}
+.user-info { line-height: 1.2; }
+.user-name { font-size: 12px; font-weight: 800; color: var(--text); }
+.user-email { font-size: 10px; color: var(--text2); }
+
+.logout-btn {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px;
+  font-size: 12px; color: var(--text2); cursor: pointer;
+  transition: all .15s; font-family: 'Nunito';
+}
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ============================================================
+   PAINEL PRINCIPAL
+============================================================ */
+#app { display: flex; height: 100vh; }
+#sidebar {
+  width: 220px; min-width: 220px; background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#topbar {
+  height: 56px; background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px; gap: 12px;
+  justify-content: space-between;
+}
+#content { flex: 1; overflow-y: auto; padding: 24px; }
+
+.sidebar-logo {
+  padding: 18px 16px 12px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-text { font-family: 'Bebas Neue'; font-size: 20px; color: var(--gold); letter-spacing: 1px; line-height: 1; }
+.logo-sub  { font-size: 9px; color: var(--text2); letter-spacing: 2px; text-transform: uppercase; }
+
+.empresa-chip {
+  margin: 10px 12px;
+  background: rgba(245,166,35,.08);
+  border: 1px solid rgba(245,166,35,.2);
+  border-radius: 8px; padding: 8px 12px;
+}
+.empresa-chip .ec-label { font-size: 9px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+.empresa-chip .ec-name  { font-size: 13px; font-weight: 800; color: var(--gold); margin-top: 2px; }
+.empresa-chip .ec-slug  { font-size: 10px; color: var(--text2); margin-top: 1px; }
+
+.nav-section { padding: 8px 16px 4px; font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 1.5px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; color: var(--text2);
+  font-size: 13px; font-weight: 600; transition: all .15s;
+  border-left: 3px solid transparent; margin: 1px 0;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--bg3); color: var(--gold); border-left-color: var(--gold); }
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 10px; }
+.nav-badge.gold { background: var(--gold); color: #000; }
+.sidebar-bottom { margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--border); }
+.sb-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+.dot.red { background: var(--red); animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── Botões ── */
+.btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Nunito'; font-weight: 700; font-size: 13px; transition: all .15s; }
+.btn-gold  { background: var(--gold); color: #000; }
+.btn-gold:hover  { background: var(--gold2); transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+.btn-red   { background: var(--red); color: #fff; }
+.btn-sm    { padding: 5px 12px; font-size: 12px; }
+.btn-icon  { padding: 7px 10px; font-size: 14px; }
+
+/* ── KPIs ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.kpi-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.kpi-value { font-family: 'Bebas Neue'; font-size: 32px; letter-spacing: 1px; }
+.kpi-sub   { font-size: 12px; color: var(--text2); margin-top: 4px; }
+.kpi-icon  { font-size: 24px; margin-bottom: 8px; }
+
+/* ── Tabelas ── */
+.table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.table-title { font-weight: 800; font-size: 15px; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--bg3); padding: 10px 16px; text-align: left; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; white-space: nowrap; }
+td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+
+/* ── Badges ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+.badge-green { background: rgba(45,198,83,.15);  color: var(--green); border: 1px solid rgba(45,198,83,.3); }
+.badge-red   { background: rgba(230,57,70,.15);  color: var(--red);   border: 1px solid rgba(230,57,70,.3); }
+.badge-gold  { background: rgba(245,166,35,.15); color: var(--gold);  border: 1px solid rgba(245,166,35,.3); }
+.badge-blue  { background: rgba(58,134,255,.15); color: var(--blue);  border: 1px solid rgba(58,134,255,.3); }
+.badge-cyan  { background: rgba(0,180,216,.15);  color: var(--cyan);  border: 1px solid rgba(0,180,216,.3); }
+.badge-gray  { background: rgba(160,160,160,.1); color: var(--text2); border: 1px solid var(--border); }
+
+/* ── Inputs/Filters ── */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.input-field { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-family: 'Nunito'; font-size: 13px; outline: none; transition: border-color .15s; }
+.input-field:focus { border-color: var(--gold); }
+.input-field::placeholder { color: var(--text2); }
+select.input-field { cursor: pointer; }
+
+/* ── Modais ── */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+.modal-bg.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto; transform: scale(.95); transition: transform .2s; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+.modal-bg.open .modal { transform: scale(1); }
+.modal-title { font-family: 'Bebas Neue'; font-size: 22px; color: var(--gold); letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.form-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.form-group label { font-size: 12px; color: var(--text2); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.form-group .input-field { width: 100%; }
+textarea.input-field { resize: vertical; min-height: 80px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; background: var(--bg3); padding: 4px; border-radius: 8px; margin-bottom: 20px; }
+.tab { flex: 1; padding: 8px 16px; text-align: center; cursor: pointer; border-radius: 6px; font-size: 13px; font-weight: 700; color: var(--text2); transition: all .15s; }
+.tab.active { background: var(--bg2); color: var(--gold); }
+
+/* ── Kanban ── */
+.kanban { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.kanban-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.kanban-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 13px; }
+.kanban-body  { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 200px; }
+.pedido-card  { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; transition: all .15s; position: relative; }
+.pedido-card:hover { border-color: var(--gold); transform: translateY(-1px); }
+.pedido-card .num    { font-family: 'Bebas Neue'; font-size: 18px; color: var(--gold); }
+.pedido-card .cli    { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.pedido-card .pit    { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+.pedido-card .pval   { font-weight: 800; color: var(--green); font-size: 14px; }
+.pedido-card .ptime  { position: absolute; top: 10px; right: 10px; font-size: 10px; color: var(--text2); }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+.chart-card  { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.chart-title { font-weight: 800; font-size: 14px; margin-bottom: 16px; }
+
+/* ── Estoque ── */
+.alert-bar { background: rgba(230,57,70,.1); border: 1px solid rgba(230,57,70,.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+tr.row-critical td { background: rgba(230,57,70,.06) !important; }
+tr.row-warn     td { background: rgba(245,166,35,.06) !important; }
+
+/* ── Toast ── */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; font-weight: 700; min-width: 260px; display: flex; align-items: center; gap: 10px; animation: fadeUp .2s ease; box-shadow: 0 4px 24px rgba(0,0,0,.5); }
+.toast.success { border-left: 4px solid var(--green); }
+.toast.error   { border-left: 4px solid var(--red); }
+.toast.info    { border-left: 4px solid var(--gold); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.fade-in { animation: fadeUp .25s ease both; }
+
+/* ── Spinners ── */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+@media(max-width:1100px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:800px)  { .kanban { grid-template-columns: repeat(2,1fr); } .charts-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     TELA DE LOGIN
+============================================================ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="burger">🍔</span>
+      <span class="brand">BurgerOps Pro</span>
+      <span class="brand-sub">Plataforma SaaS · Delivery</span>
+    </div>
+
+    <div class="login-alert" id="login-alert">
+      <span class="login-alert-icon" id="alert-icon">⛔</span>
+      <span id="alert-msg">Mensagem de erro aqui.</span>
+    </div>
+
+    <label class="login-label">E-mail</label>
+    <div class="login-input-wrap">
+      <span class="login-input-icon">✉️</span>
+      <input type="email" class="login-input" id="login-email"
+             placeholder="seuemail@empresa.com"
+             autocomplete="email">
+    </div>
+
+    <label class="login-label">Senha</label>
+    <div class="login-input-wrap">
+      <span class="login-input-icon">🔑</span>
+      <input type="password" class="login-input" id="login-senha"
+             placeholder="••••••••"
+             autocomplete="current-password">
+    </div>
+
+    <button class="login-btn" id="login-btn" onclick="fazerLogin()">
+      <div class="btn-spinner" id="login-spinner"></div>
+      <span id="login-btn-text">Entrar no painel</span>
+    </button>
+
+    <div class="login-footer">
+      Problemas de acesso? Fale com o suporte.<br>
+      <strong style="color:var(--gold)">BurgerOps Pro</strong> — Todos os direitos reservados.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAINEL PRINCIPAL
+============================================================ -->
+<div id="app" style="display:none">
+  <div id="sidebar">
+    <div class="sidebar-logo">
+      <span style="font-size:26px">🍔</span>
+      <div>
+        <div class="logo-text">BurgerOps</div>
+        <div class="logo-sub">Pro · SaaS</div>
+      </div>
+    </div>
+
+    <div class="empresa-chip" id="empresa-chip">
+      <div class="ec-label">Empresa</div>
+      <div class="ec-name" id="ec-name">—</div>
+      <div class="ec-slug" id="ec-slug">—</div>
+    </div>
+
+    <div class="nav-section">Menu</div>
+    <div class="nav-item active" onclick="showPage('pedidos')"   id="nav-pedidos">  <span class="icon">📋</span> Pedidos   <span class="nav-badge" id="badge-novos" style="display:none">0</span></div>
+    <div class="nav-item"        onclick="showPage('cardapio')"  id="nav-cardapio"> <span class="icon">🍔</span> Cardápio  </div>
+    <div class="nav-item"        onclick="showPage('estoque')"   id="nav-estoque">  <span class="icon">📦</span> Estoque   <span class="nav-badge" id="badge-est"   style="display:none">!</span></div>
+    <div class="nav-item"        onclick="showPage('dashboard')" id="nav-dashboard"><span class="icon">📊</span> Dashboard </div>
+    <div class="nav-section">Sistema</div>
+    <div class="nav-item"        onclick="showPage('config')"    id="nav-config">   <span class="icon">⚙️</span> Config n8n</div>
+
+    <div class="sidebar-bottom">
+      <div class="sb-status">
+        <div class="dot" id="sb-dot"></div>
+        <span id="sb-label">Conectando...</span>
+      </div>
+      <div style="font-size:10px;color:var(--text2)" id="rt-status">Realtime: —</div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="topbar">
+      <div style="font-family:'Bebas Neue';font-size:20px;letter-spacing:1px" id="page-title">Pedidos</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="topbar-actions"></div>
+        <div class="user-chip" id="user-chip">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name-chip">—</div>
+            <div class="user-email" id="user-email-chip">—</div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="fazerLogout()">Sair</button>
+      </div>
+    </div>
+    <div id="content" class="fade-in"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAIS
+============================================================ -->
+<div class="modal-bg" id="senha-modal">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div style="font-size:48px;margin-bottom:8px">🔒</div>
+    <div class="modal-title" style="justify-content:center">Acesso Restrito</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Senha de administrador necessária.</p>
+    <div class="form-group">
+      <input type="password" class="input-field" id="senha-input" placeholder="••••••••" style="text-align:center;letter-spacing:4px;font-size:18px">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeSenha()">Cancelar</button>
+      <button class="btn btn-gold"    onclick="verificarSenha()">🔓 Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="cardapio-modal">
+  <div class="modal">
+    <div class="modal-title" id="cm-title">🍔 Novo Item</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nome</label>  <input type="text" class="input-field" id="cm-nome" placeholder="Ex: Smash Burguer"></div>
+      <div class="form-group"><label>Emoji</label> <input type="text" class="input-field" id="cm-emoji" placeholder="🍔" maxlength="4"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Categoria</label>
+        <select class="input-field" id="cm-cat"><option>Burgers</option><option>Combos</option><option>Acompanhamentos</option><option>Bebidas</option><option>Sobremesas</option><option>Molhos</option></select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select class="input-field" id="cm-status"><option value="disponivel">Disponível</option><option value="indisponivel">Indisponível</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Descrição</label><textarea class="input-field" id="cm-desc" placeholder="Ingredientes..."></textarea></div>
+    <div class="form-group"><label>Preço (R$)</label><input type="number" class="input-field" id="cm-preco" placeholder="0,00" step="0.01" style="max-width:200px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('cardapio-modal')">Cancelar</button>
+      <button class="btn btn-gold"    onclick="salvarCardapio()" id="btn-sc">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="pedido-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="pm-title">📋 Pedido</div>
+    <div class="form-row">
+      <div class="form-group"><label>Cliente</label>  <input type="text" class="input-field" id="pm-cli"></div>
+      <div class="form-group"><label>Telefone</label> <input type="text" class="input-field" id="pm-tel"></div>
+    </div>
+    <div class="form-group"><label>Itens</label><textarea class="input-field" id="pm-itens"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Total (R$)</label><input type="number" class="input-field" id="pm-total" step="0.01"></div>
+      <div class="form-group"><label>Pagamento</label>
+        <select class="input-field" id="pm-pgto"><option value="">Selecionar...</option><option>PIX</option><option>Dinheiro</option><option>Cartão de Crédito</option><option>Cartão de Débito</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tipo de entrega</label>
+        <select class="input-field" id="pm-entr"><option value="">Selecionar...</option><option>Delivery</option><option>Retirada no Balcão</option></select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select class="input-field" id="pm-st"><option value="novo">🆕 Novo</option><option value="preparo">🔥 Preparo</option><option value="pronto">✅ Pronto</option><option value="entrega">🛵 Entrega</option><option value="concluido">🎉 Concluído</option><option value="cancelado">❌ Cancelado</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Obs / Endereço de entrega</label><input type="text" class="input-field" id="pm-obs"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('pedido-modal')">Cancelar</button>
+      <button class="btn btn-gold"    onclick="salvarPedido()" id="btn-sp">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="estoque-modal">
+  <div class="modal">
+    <div class="modal-title" id="em-title">📦 Estoque</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nome</label><input type="text" class="input-field" id="em-nome"></div>
+      <div class="form-group"><label>Categoria</label>
+        <select class="input-field" id="em-cat"><option>Alimento</option><option>Bebida</option><option>Embalagem</option><option>Insumo</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Quantidade</label><input type="number" class="input-field" id="em-qtd" placeholder="0"></div>
+      <div class="form-group"><label>Unidade</label>
+        <select class="input-field" id="em-uni"><option>un</option><option>kg</option><option>L</option><option>porção</option><option>caixa</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Custo (R$)</label><input type="number" class="input-field" id="em-custo" step="0.01"></div>
+      <div class="form-group"><label>Validade</label><input type="date" class="input-field" id="em-val"></div>
+    </div>
+    <div class="form-group"><label>Mínimo (alerta)</label><input type="number" class="input-field" id="em-min" placeholder="5" style="max-width:200px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('estoque-modal')">Cancelar</button>
+      <button class="btn btn-gold"    onclick="salvarEstoque()" id="btn-se">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE IMPRESSÃO -->
+<div class="modal-bg" id="print-modal">
+  <div class="modal" style="width:420px">
+    <div class="modal-title">🖨️ Comanda para Cozinha</div>
+    <div id="print-content"
+         style="background:#fff;color:#000;border-radius:8px;
+                padding:20px;font-family:monospace;font-size:12px;
+                line-height:1.8;white-space:pre-wrap;max-height:420px;
+                overflow-y:auto;border:1px solid #ddd;word-break:break-word">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('print-modal')">Fechar</button>
+      <button class="btn btn-gold"    onclick="imprimirComanda()">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+<script>
+'use strict';
+
+// ============================================================
+// ⚙️  SUPABASE MASTER — preencha SOMENTE estas duas variáveis
+// ============================================================
+const MASTER_URL = 'https://qgsrdubouphyjsdapkgo.supabase.co';
+const MASTER_KEY = 'sb_publishable_LYUTQmps3aaGSuO4z2aXKg_S45w-seA';
+
+// Conexão dinâmica (preenchida após login)
+let CLIENT_URL = '';
+let CLIENT_KEY = '';
+
+// Estado de sessão
+let SESSION     = null;
+let editingId   = null;
+let senhaCallback = null;
+let currentPage = 'pedidos';
+let viewTab     = 'kanban';
+let allPedidos  = [];
+let allCardapio = [];
+let allEstoque  = [];
+let ws          = null;
+let n8nUrl      = '';
+
+// ── STATUS HELPERS ───────────────────────────────────────────
+function setStatus(ok) {
+  const dot = document.getElementById('sb-dot');
+  const lbl = document.getElementById('sb-label');
+  dot.className = ok ? 'dot' : 'dot red';
+  lbl.textContent = ok ? 'Supabase conectado' : 'Sem conexão';
+}
+
+// ── SUPABASE FETCH WRAPPER ───────────────────────────────────
+const sb = {
+  h() {
+    return {
+      'apikey': CLIENT_KEY,
+      'Authorization': 'Bearer ' + CLIENT_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    };
+  },
+  async select(table, qs = '') {
+    const r = await fetch(`${CLIENT_URL}/rest/v1/${table}?${qs}`, { headers: this.h() });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async insert(table, data) {
+    const r = await fetch(`${CLIENT_URL}/rest/v1/${table}`, { method: 'POST', headers: this.h(), body: JSON.stringify(data) });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async update(table, id, data) {
+    const r = await fetch(`${CLIENT_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: this.h(), body: JSON.stringify(data) });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async del(table, id) {
+    const r = await fetch(`${CLIENT_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: this.h() });
+    if (!r.ok) throw new Error(await r.text());
+    return true;
+  }
+};
+
+// ── SUPABASE MASTER (somente para login) ─────────────────────
+async function masterSelect(table, qs = '') {
+  const r = await fetch(`${MASTER_URL}/rest/v1/${table}?${qs}`, {
+    headers: { 'apikey': MASTER_KEY, 'Authorization': 'Bearer ' + MASTER_KEY, 'Content-Type': 'application/json' }
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ============================================================
+//  LOGIN
+// ============================================================
+function showAlert(type, icon, msg) {
+  const el = document.getElementById('login-alert');
+  document.getElementById('alert-icon').textContent = icon;
+  document.getElementById('alert-msg').textContent  = msg;
+  el.className = `login-alert ${type} show`;
+}
+function hideAlert() {
+  document.getElementById('login-alert').classList.remove('show');
+}
+
+async function fazerLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const senha = document.getElementById('login-senha').value;
+
+  if (!email || !senha) { showAlert('warning', '⚠️', 'Preencha e-mail e senha.'); return; }
+  if (!MASTER_URL || !MASTER_KEY) {
+    showAlert('error', '🔧', 'Chaves Master não configuradas. Edite as variáveis MASTER_URL e MASTER_KEY no código.');
+    return;
+  }
+
+  const btn = document.getElementById('login-btn');
+  const txt = document.getElementById('login-btn-text');
+  const spn = document.getElementById('login-spinner');
+  btn.disabled = true;
+  txt.textContent = 'Verificando...';
+  spn.style.display = 'block';
+  hideAlert();
+
+  try {
+    const rows = await masterSelect('config_clientes', `email=eq.${encodeURIComponent(email)}&select=*`);
+
+    if (!rows || rows.length === 0) {
+      showAlert('error', '❌', 'E-mail não encontrado. Verifique seus dados ou fale com o suporte.');
+      return;
+    }
+
+    const cliente = rows[0];
+
+    if (cliente.senha !== senha) {
+      showAlert('error', '❌', 'Senha incorreta. Tente novamente.');
+      return;
+    }
+
+    if (cliente.status_ativo === false || cliente.status_ativo === 'false') {
+      showAlert('error', '🚫', 'Acesso suspenso por pendência financeira. Fale com o suporte.');
+      return;
+    }
+
+    if (!cliente.cliente_supabase_url || !cliente.cliente_supabase_key) {
+      showAlert('error', '⚙️', 'Configuração de banco do cliente incompleta. Fale com o suporte.');
+      return;
+    }
+
+    CLIENT_URL = cliente.cliente_supabase_url.trim().replace(/\/$/, '');
+    CLIENT_KEY = cliente.cliente_supabase_key.trim();
+    n8nUrl     = cliente.n8n_url || '';
+
+    SESSION = {
+      email:        cliente.email,
+      nome_empresa: cliente.nome_empresa || 'Minha Empresa',
+      slug:         cliente.slug || 'meu-negocio',
+      plano:        cliente.plano || 'starter',
+    };
+    sessionStorage.setItem('burgerops_session',    JSON.stringify(SESSION));
+    sessionStorage.setItem('burgerops_client_url', CLIENT_URL);
+    sessionStorage.setItem('burgerops_client_key', CLIENT_KEY);
+    sessionStorage.setItem('burgerops_n8n',        n8nUrl);
+
+    showAlert('success', '✅', 'Login bem-sucedido! Carregando painel...');
+    setTimeout(abrirPainel, 800);
+
+  } catch (e) {
+    showAlert('error', '⚠️', 'Erro ao conectar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    txt.textContent = 'Entrar no painel';
+    spn.style.display = 'none';
+  }
+}
+
+document.getElementById('login-senha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') fazerLogin();
+});
+document.getElementById('login-email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-senha').focus();
+});
+
+// ── ABRIR PAINEL ─────────────────────────────────────────────
+function abrirPainel() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  const iniciais = SESSION.nome_empresa.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+  document.getElementById('user-avatar').textContent     = iniciais;
+  document.getElementById('user-name-chip').textContent  = SESSION.nome_empresa;
+  document.getElementById('user-email-chip').textContent = SESSION.email;
+  document.getElementById('ec-name').textContent = SESSION.nome_empresa;
+  document.getElementById('ec-slug').textContent = SESSION.slug;
+
+  connectRealtime();
+  showPage('pedidos');
+  setInterval(updateBadges, 30000);
+}
+
+// ── LOGOUT ───────────────────────────────────────────────────
+function fazerLogout() {
+  if (!confirm('Deseja sair do sistema?')) return;
+  sessionStorage.clear();
+  CLIENT_URL = ''; CLIENT_KEY = '';
+  SESSION = null;
+  if (ws) { ws.close(); ws = null; }
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-senha').value = '';
+  hideAlert();
+}
+
+// ── RESTAURAR SESSÃO ──────────────────────────────────────────
+function restaurarSessao() {
+  const saved = sessionStorage.getItem('burgerops_session');
+  if (!saved) return false;
+  try {
+    SESSION    = JSON.parse(saved);
+    CLIENT_URL = sessionStorage.getItem('burgerops_client_url') || '';
+    CLIENT_KEY = sessionStorage.getItem('burgerops_client_key') || '';
+    n8nUrl     = sessionStorage.getItem('burgerops_n8n')        || '';
+    if (!CLIENT_URL || !CLIENT_KEY) return false;
+    return true;
+  } catch (e) { return false; }
+}
+
+// ============================================================
+//  REALTIME
+// ============================================================
+function connectRealtime() {
+  if (!CLIENT_URL || !CLIENT_KEY) return;
+  const slug  = SESSION?.slug || '';
+  const wsUrl = CLIENT_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+  try {
+    ws = new WebSocket(`${wsUrl}/realtime/v1/websocket?apikey=${CLIENT_KEY}&vsn=1.0.0`);
+    ws.onopen = () => {
+      setStatus(true);
+      document.getElementById('rt-status').textContent = 'Realtime: ✅ ativo';
+      ['cardapio', 'pedidos', 'estoque'].forEach(t => {
+        ws.send(JSON.stringify({ topic: `realtime:public:${t}:slug=eq.${slug}`, event: 'phx_join', payload: {}, ref: t }));
+      });
+    };
+    ws.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if (['INSERT', 'UPDATE', 'DELETE'].includes(msg.event)) {
+        const t = msg.topic?.split(':')[2];
+        if (t === currentPage || (currentPage === 'pedidos' && t === 'pedidos')) showPage(currentPage);
+        if (t === 'pedidos' && msg.event === 'INSERT') toast('🍔 Novo pedido!', 'info');
+        updateBadges();
+      }
+    };
+    ws.onerror = () => setStatus(false);
+    ws.onclose = () => {
+      setStatus(false);
+      document.getElementById('rt-status').textContent = 'Realtime: reconectando...';
+      setTimeout(connectRealtime, 5000);
+    };
+  } catch (e) { setStatus(false); }
+}
+
+// ============================================================
+//  NAVEGAÇÃO
+// ============================================================
+const PAGE_TITLES = {
+  pedidos:   'Pedidos & Vendas',
+  cardapio:  'Cardápio Digital',
+  estoque:   'Gestão de Estoque',
+  dashboard: 'Dashboard',
+  config:    'Config n8n'
+};
+
+async function showPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const nav = document.getElementById('nav-' + page);
+  if (nav) nav.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
+  document.getElementById('content').innerHTML = '';
+  document.getElementById('content').className = 'fade-in';
+  document.getElementById('topbar-actions').innerHTML = '';
+
+  if      (page === 'pedidos')    await renderPedidos();
+  else if (page === 'cardapio')   await renderCardapio();
+  else if (page === 'estoque')    await renderEstoque();
+  else if (page === 'dashboard')  await renderDashboard();
+  else if (page === 'config')     renderConfig();
+
+  // FIX: só ativa o QR Code quando estiver na página de cardápio
+  // e apenas se o elemento existir no DOM
+  if (page === 'cardapio') {
+    setTimeout(() => {
+      const inputLink = document.getElementById('meu-link-input');
+      if (inputLink) {
+        const slugAtual = getSlug();
+        inputLink.value = `https://burgerops-cardapio.vercel.app/?slug=burguer-jardel`;
+        gerarQRCode();
+      }
+    }, 100);
+  }
+}
+
+async function updateBadges() {
+  if (!CLIENT_URL || !CLIENT_KEY) return;
+  const slug = SESSION?.slug || '';
+  try {
+    const novos = await sb.select('pedidos', `slug=eq.${slug}&status=eq.novo&select=id`);
+    const bn = document.getElementById('badge-novos');
+    bn.textContent = novos.length;
+    bn.style.display = novos.length ? 'inline-block' : 'none';
+    const est = await sb.select('estoque', `slug=eq.${slug}&select=quantidade,minimo,validade`);
+    const crit = est.filter(e => e.quantidade === 0 || e.quantidade < e.minimo || isVencido(e.validade));
+    document.getElementById('badge-est').style.display = crit.length ? 'inline-block' : 'none';
+  } catch (e) {}
+}
+
+// ============================================================
+//  UTILS
+// ============================================================
+function getSlug()    { return SESSION?.slug || ''; }
+function isVencido(v) { return v && new Date(v + 'T00:00:00') < new Date(); }
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const d = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (d < 1)    return 'agora';
+  if (d < 60)   return d + 'min';
+  if (d < 1440) return Math.floor(d / 60) + 'h';
+  return Math.floor(d / 1440) + 'd';
+}
+
+// ============================================================
+//  PEDIDOS
+// ============================================================
+const ST = {
+  novo:      { label: '🆕 Novo',      badge: 'badge-blue',  col: '#3a86ff' },
+  preparo:   { label: '🔥 Preparo',   badge: 'badge-gold',  col: '#f5a623' },
+  pronto:    { label: '✅ Pronto',    badge: 'badge-cyan',  col: '#00b4d8' },
+  entrega:   { label: '🛵 Entrega',   badge: 'badge-cyan',  col: '#7209b7' },
+  concluido: { label: '🎉 Concluído', badge: 'badge-green', col: '#2dc653' },
+  cancelado: { label: '❌ Cancelado', badge: 'badge-red',   col: '#e63946' },
+};
+
+async function renderPedidos() {
+  document.getElementById('topbar-actions').innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="showPage('pedidos')">🔄</button>
+    <button class="btn btn-gold btn-sm" onclick="novoPedido()">+ Novo Pedido</button>`;
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="filters" style="margin-bottom:20px">
+      <input type="text" class="input-field" id="f-q" placeholder="🔍 Cliente..." style="width:200px" oninput="filtrarPed()">
+      <select class="input-field" id="f-st" onchange="filtrarPed()">
+        <option value="">Todos status</option>
+        ${Object.entries(ST).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
+      </select>
+      <select class="input-field" id="f-pg" onchange="filtrarPed()">
+        <option value="">Todos pagamentos</option>
+        <option>PIX</option><option>Dinheiro</option><option>Cartão de Crédito</option><option>Cartão de Débito</option>
+      </select>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="setVT('kanban',this)">🗂️ Kanban</div>
+      <div class="tab"        onclick="setVT('tabela',this)">📋 Tabela</div>
+    </div>
+    <div style="text-align:center;padding:32px" id="ped-load"><div class="spinner"></div></div>
+    <div id="ped-view"></div>`;
+  try {
+    allPedidos = await sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`);
+    document.getElementById('ped-load').style.display = 'none';
+    filtrarPed();
+  } catch (e) {
+    document.getElementById('ped-load').innerHTML = `<p style="color:var(--red)">Erro: ${e.message}</p>`;
+  }
+}
+
+function setVT(v, el) {
+  viewTab = v;
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  filtrarPed();
+}
+
+function filtrarPed() {
+  const q  = (document.getElementById('f-q')?.value || '').toLowerCase();
+  const st = document.getElementById('f-st')?.value || '';
+  const pg = document.getElementById('f-pg')?.value || '';
+  const f  = allPedidos.filter(p =>
+    (!q  || p.cliente_nome?.toLowerCase().includes(q) || p.telefone?.includes(q)) &&
+    (!st || p.status === st) &&
+    (!pg || p.pagamento === pg)
+  );
+  const el = document.getElementById('ped-view');
+  if (!el) return;
+  el.innerHTML = viewTab === 'kanban' ? renderKanban(f) : renderTabelaPed(f);
+}
+
+function renderKanban(ps) {
+  return `<div class="kanban">${['novo', 'preparo', 'pronto', 'entrega'].map(col => {
+    const its = ps.filter(p => p.status === col);
+    const cfg = ST[col];
+    return `<div class="kanban-col">
+      <div class="kanban-header" style="color:${cfg.col}">${cfg.label}
+        <span style="background:${cfg.col}20;color:${cfg.col};padding:2px 8px;border-radius:10px;font-size:12px">${its.length}</span>
+      </div>
+      <div class="kanban-body">
+        ${its.length ? its.map(p => `
+          <div class="pedido-card" onclick="editarPedido(${p.id})">
+            <div class="num">#${p.id}</div>
+            <div class="ptime">${timeAgo(p.criado_em)}</div>
+            <div class="cli">${p.cliente_nome}</div>
+            <div class="pit">${(p.itens || '').substring(0, 50)}${(p.itens || '').length > 50 ? '...' : ''}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="pval">R$ ${Number(p.total).toFixed(2)}</div>
+              <span style="font-size:11px;color:var(--text2)">${p.pagamento || ''}</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();wppPedido(${p.id})">📲</button>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();imprimirPedido(${p.id})">🖨️</button>
+              <button class="btn btn-red btn-sm"     onclick="event.stopPropagation();cancelarPedido(${p.id})">✕</button>
+            </div>
+          </div>`).join('') : `<div style="text-align:center;color:var(--text2);padding:32px;font-size:13px">Vazio</div>`}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderTabelaPed(ps) {
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Pgto</th><th>Status</th><th>Há</th><th>Ações</th></tr></thead>
+    <tbody>${ps.length ? ps.map(p => {
+      const cfg = ST[p.status] || ST.novo;
+      return `<tr>
+        <td><b style="color:var(--gold)">#${p.id}</b></td>
+        <td><b>${p.cliente_nome}</b><br><span style="font-size:11px;color:var(--text2)">${p.telefone || ''}</span></td>
+        <td style="max-width:180px;font-size:12px">${p.itens || ''}</td>
+        <td><b style="color:var(--green)">R$ ${Number(p.total).toFixed(2)}</b></td>
+        <td style="font-size:12px">${p.pagamento || ''}</td>
+        <td><span class="badge ${cfg.badge}">${cfg.label}</span></td>
+        <td style="font-size:11px;color:var(--text2)">${timeAgo(p.criado_em)}</td>
+        <td><div style="display:flex;gap:4px">
+          <button class="btn btn-outline btn-icon" onclick="editarPedido(${p.id})">✏️</button>
+          <button class="btn btn-outline btn-icon" onclick="wppPedido(${p.id})">📲</button>
+          <button class="btn btn-outline btn-icon" onclick="imprimirPedido(${p.id})">🖨️</button>
+          <button class="btn btn-red btn-icon"     onclick="deletarPedido(${p.id})">🗑️</button>
+        </div></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text2)">Nenhum pedido</td></tr>`}
+    </tbody></table></div>`;
+}
+
+function novoPedido() {
+  editingId = null;
+  document.getElementById('pm-title').textContent = '➕ Novo Pedido';
+  ['pm-cli', 'pm-tel', 'pm-itens', 'pm-obs'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pm-total').value = '';
+  document.getElementById('pm-pgto').value  = '';
+  document.getElementById('pm-entr').value  = '';
+  document.getElementById('pm-st').value    = 'novo';
+  openModal('pedido-modal');
+}
+
+function editarPedido(id) {
+  const p = allPedidos.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById('pm-title').textContent = `✏️ Pedido #${id}`;
+  document.getElementById('pm-cli').value   = p.cliente_nome || '';
+  document.getElementById('pm-tel').value   = p.telefone     || '';
+  document.getElementById('pm-itens').value = p.itens        || '';
+  document.getElementById('pm-total').value = p.total        || '';
+  document.getElementById('pm-pgto').value  = p.pagamento    || '';
+  document.getElementById('pm-st').value    = p.status       || 'novo';
+  // FIX: campo observacao corrigido (era p.entrega)
+  document.getElementById('pm-obs').value   = p.observacao   || '';
+  // FIX: lógica de entrega corrigida
+  if (p.entrega && p.entrega.includes('Retirada')) {
+    document.getElementById('pm-entr').value = 'Retirada no Balcão';
+  } else {
+    document.getElementById('pm-entr').value = p.entrega || 'Delivery';
+  }
+  openModal('pedido-modal');
+}
+
+async function salvarPedido() {
+  const btn = document.getElementById('btn-sp');
+  const cli = document.getElementById('pm-cli').value.trim();
+  const its = document.getElementById('pm-itens').value.trim();
+  const tot = parseFloat(document.getElementById('pm-total').value) || 0;
+  if (!cli || !its || !tot) { toast('Campos obrigatórios!', 'error'); return; }
+  const data = {
+    slug:          getSlug(),
+    cliente_nome:  cli,
+    telefone:      document.getElementById('pm-tel').value,
+    itens:         its,
+    total:         tot,
+    pagamento:     document.getElementById('pm-pgto').value,
+    entrega:       document.getElementById('pm-entr').value,
+    status:        document.getElementById('pm-st').value,
+    observacao:    document.getElementById('pm-obs').value,
+    atualizado_em: new Date().toISOString()
+  };
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    if (editingId) {
+      await sb.update('pedidos', editingId, data);
+      toast(`Pedido #${editingId} atualizado!`, 'success');
+    } else {
+      const n = await sb.insert('pedidos', data);
+      dispararWebhook('pedido.criado', n[0] || data);
+      toast('Pedido criado!', 'success');
+    }
+    closeModal('pedido-modal');
+    allPedidos = await sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`);
+    filtrarPed();
+    updateBadges();
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '💾 Salvar'; }
+}
+
+async function cancelarPedido(id) {
+  if (!confirm(`Cancelar pedido #${id}?`)) return;
+  try {
+    await sb.update('pedidos', id, { status: 'cancelado', atualizado_em: new Date().toISOString() });
+    dispararWebhook('pedido.cancelado', { id });
+    toast(`Pedido #${id} cancelado.`, 'info');
+    allPedidos = await sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`);
+    filtrarPed();
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function deletarPedido(id) {
+  solicitarSenha(async () => {
+    try {
+      await sb.del('pedidos', id);
+      toast('Deletado.', 'info');
+      allPedidos = await sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`);
+      filtrarPed();
+    } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  });
+}
+
+function wppPedido(id) {
+  const p = allPedidos.find(x => x.id === id);
+  if (!p) return;
+  const tel = (p.telefone || '').replace(/\D/g, '');
+  const msg = encodeURIComponent(`Olá ${p.cliente_nome}! Seu pedido #${p.id} está ${ST[p.status]?.label || p.status}. 🍔`);
+  window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+}
+
+function imprimirPedido(id) {
+  const p = allPedidos.find(x => x.id === id);
+  if (!p) return;
+  const cfg  = ST[p.status] || ST.novo;
+  // FIX: campo de data corrigido de p.created_at para p.criado_em
+  const data = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : '-';
+  document.getElementById('print-content').innerHTML =
+`================================
+       ${SESSION?.nome_empresa || 'BurgerOps Pro'}
+================================
+PEDIDO #${p.id}
+Data: ${data}
+Status: ${cfg.label}
+--------------------------------
+CLIENTE
+Nome:     ${p.cliente_nome || '—'}
+Telefone: ${p.telefone || '—'}
+Entrega:  ${p.entrega || '—'}
+--------------------------------
+ITENS
+${p.itens || '—'}
+--------------------------------
+${p.observacao ? `OBS: ${p.observacao}\n--------------------------------\n` : ''}Total:    R$ ${Number(p.total).toFixed(2)}
+Pagamento: ${p.pagamento || '—'}
+================================
+       Obrigado pela preferência!
+================================`;
+  openModal('print-modal');
+}
+
+// ============================================================
+//  CARDÁPIO
+// ============================================================
+async function renderCardapio() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-gold btn-sm" onclick="novoItem()">+ Novo Item</button>`;
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="filters" style="margin-bottom:20px">
+      <input type="text" class="input-field" id="fc-q" placeholder="🔍 Buscar..." style="width:200px" oninput="filtrarCard()">
+      <select class="input-field" id="fc-cat" onchange="filtrarCard()">
+        <option value="">Todas categorias</option>
+        ${['Burgers','Combos','Acompanhamentos','Bebidas','Sobremesas','Molhos'].map(c => `<option>${c}</option>`).join('')}
+      </select>
+      <select class="input-field" id="fc-st" onchange="filtrarCard()">
+        <option value="">Todos status</option>
+        <option value="disponivel">Disponível</option>
+        <option value="indisponivel">Indisponível</option>
+      </select>
+    </div>
+    <div style="text-align:center;padding:32px" id="card-load"><div class="spinner"></div></div>
+    <div class="table-wrap" id="card-tbl"></div>
+
+    <!-- Ferramentas: Link e QR Code do Cardápio -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:24px">
+      <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:16px">🔗 Link & QR Code do Cardápio</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <input type="text" class="input-field" id="meu-link-input" style="flex:1;min-width:260px" readonly placeholder="O link será gerado automaticamente...">
+        <button class="btn btn-outline btn-sm" onclick="copiarLink()">📋 Copiar</button>
+        <button class="btn btn-gold btn-sm"    onclick="gerarQRCode()">📷 Gerar QR</button>
+        <button class="btn btn-outline btn-sm" onclick="baixarQRCode()">⬇️ Baixar QR</button>
+      </div>
+      <div id="qrcode-container" style="margin-top:8px"></div>
+    </div>`;
+
+  try {
+    allCardapio = await sb.select('cardapio', `slug=eq.${getSlug()}&order=categoria,nome`);
+    document.getElementById('card-load').style.display = 'none';
+    filtrarCard();
+  } catch (e) {
+    document.getElementById('card-load').innerHTML = `<p style="color:var(--red)">Erro: ${e.message}</p>`;
+  }
+}
+
+function filtrarCard() {
+  const q   = (document.getElementById('fc-q')?.value || '').toLowerCase();
+  const cat = document.getElementById('fc-cat')?.value || '';
+  const st  = document.getElementById('fc-st')?.value  || '';
+  const items = allCardapio.filter(i =>
+    (!q   || i.nome.toLowerCase().includes(q) || (i.descricao || '').toLowerCase().includes(q)) &&
+    (!cat || i.categoria === cat) &&
+    (!st  || i.status === st)
+  );
+  const el = document.getElementById('card-tbl');
+  if (!el) return;
+  el.innerHTML = `<table><thead><tr><th>Item</th><th>Cat.</th><th>Descrição</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+  <tbody>${items.map(i => `<tr>
+    <td><span style="font-size:18px;margin-right:8px">${i.emoji || '🍔'}</span><b>${i.nome}</b></td>
+    <td><span class="badge badge-gray">${i.categoria}</span></td>
+    <td style="font-size:12px;color:var(--text2);max-width:220px">${i.descricao || '—'}</td>
+    <td><b style="color:var(--gold)">R$ ${Number(i.preco).toFixed(2)}</b></td>
+    <td>${i.status === 'disponivel' ? '<span class="badge badge-green">✔ Disponível</span>' : '<span class="badge badge-red">✕ Indisponível</span>'}</td>
+    <td><div style="display:flex;gap:6px">
+      <button class="btn btn-outline btn-icon" onclick="editarItem(${i.id})">✏️</button>
+      <button class="btn btn-outline btn-icon" onclick="toggleItem(${i.id})">${i.status === 'disponivel' ? '🔴' : '🟢'}</button>
+      <button class="btn btn-red btn-icon"     onclick="deletarItem(${i.id})">🗑️</button>
+    </div></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+function novoItem() {
+  editingId = null;
+  document.getElementById('cm-title').textContent = '🍔 Novo Item';
+  ['cm-nome', 'cm-desc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cm-emoji').value  = '🍔';
+  document.getElementById('cm-preco').value  = '';
+  document.getElementById('cm-cat').value    = 'Burgers';
+  document.getElementById('cm-status').value = 'disponivel';
+  openModal('cardapio-modal');
+}
+
+function editarItem(id) {
+  solicitarSenha(() => {
+    const i = allCardapio.find(x => x.id === id);
+    if (!i) return;
+    editingId = id;
+    document.getElementById('cm-title').textContent = `✏️ Editar: ${i.nome}`;
+    document.getElementById('cm-nome').value   = i.nome;
+    document.getElementById('cm-emoji').value  = i.emoji || '🍔';
+    document.getElementById('cm-cat').value    = i.categoria;
+    document.getElementById('cm-desc').value   = i.descricao || '';
+    document.getElementById('cm-preco').value  = i.preco;
+    document.getElementById('cm-status').value = i.status;
+    openModal('cardapio-modal');
+  });
+}
+
+async function salvarCardapio() {
+  const btn  = document.getElementById('btn-sc');
+  const nome = document.getElementById('cm-nome').value.trim();
+  const preco = parseFloat(document.getElementById('cm-preco').value) || 0;
+  if (!nome || !preco) { toast('Nome e preço obrigatórios!', 'error'); return; }
+  const data = {
+    slug:          getSlug(),
+    nome,
+    emoji:         document.getElementById('cm-emoji').value || '🍔',
+    categoria:     document.getElementById('cm-cat').value,
+    descricao:     document.getElementById('cm-desc').value,
+    preco,
+    status:        document.getElementById('cm-status').value,
+    atualizado_em: new Date().toISOString()
+  };
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    if (editingId) {
+      await sb.update('cardapio', editingId, data);
+      toast('Atualizado!', 'success');
+    } else {
+      await sb.insert('cardapio', data);
+      toast('Adicionado!', 'success');
+    }
+    closeModal('cardapio-modal');
+    allCardapio = await sb.select('cardapio', `slug=eq.${getSlug()}&order=categoria,nome`);
+    filtrarCard();
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '💾 Salvar'; }
+}
+
+async function toggleItem(id) {
+  solicitarSenha(async () => {
+    const i = allCardapio.find(x => x.id === id);
+    if (!i) return;
+    const n = i.status === 'disponivel' ? 'indisponivel' : 'disponivel';
+    try {
+      await sb.update('cardapio', id, { status: n, atualizado_em: new Date().toISOString() });
+      dispararWebhook('cardapio.status', { id, nome: i.nome, status: n });
+      toast(`"${i.nome}" → ${n}`, 'info');
+      allCardapio = await sb.select('cardapio', `slug=eq.${getSlug()}&order=categoria,nome`);
+      filtrarCard();
+    } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  });
+}
+
+async function deletarItem(id) {
+  solicitarSenha(async () => {
+    try {
+      await sb.del('cardapio', id);
+      toast('Removido!', 'info');
+      allCardapio = await sb.select('cardapio', `slug=eq.${getSlug()}&order=categoria,nome`);
+      filtrarCard();
+    } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  });
+}
+
+// ============================================================
+//  GERADOR DE QR CODE 100% LOCAL (sem CDN, sem API externa)
+//  Implementação QR Code Mode Byte, ECC Level M, versão auto
+// ============================================================
+const QRGen = (() => {
+  // --- Tabelas GF(256) ---
+  const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  (() => { let x=1; for(let i=0;i<255;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&256)x^=285;} for(let i=255;i<512;i++)EXP[i]=EXP[i-255]; })();
+  const mul=(a,b)=>a&&b?EXP[LOG[a]+LOG[b]]:0;
+  function polyMul(p,q){const r=new Uint8Array(p.length+q.length-1);for(let i=0;i<p.length;i++)for(let j=0;j<q.length;j++)r[i+j]^=mul(p[i],q[j]);return r;}
+  function genPoly(n){let p=new Uint8Array([1]);for(let i=0;i<n;i++)p=polyMul(p,new Uint8Array([1,EXP[i]]));return p;}
+  function rsEncode(data,n){const gen=genPoly(n);let msg=new Uint8Array(data.length+n);msg.set(data);for(let i=0;i<data.length;i++){const c=msg[i];if(c)for(let j=0;j<gen.length;j++)msg[i+j]^=mul(gen[j],c);}return msg.slice(data.length);}
+
+  // Versão/capacidade Mode Byte ECC M (codewords de dados)
+  const CAP=[0,16,28,44,64,86,108,124,154,182,216,254,290,334,365,415,453,507,563,627,669,714,782,860,914,1000,1062,1128,1193,1267,1373];
+  function getVer(n){for(let v=1;v<=30;v++)if(CAP[v]>=n)return v;return 30;}
+
+  // Alinhamento
+  const ALIGN=[[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130]];
+
+  // Formato ECC M
+  const FMT_M=[0b101010000010010,0b101000100100101,0b101111001111100,0b101101101001011,0b100010111111001,0b100000011001110,0b100111110010111,0b100101010100000,0b111011111000100,0b111001011110011,0b111110110101010,0b111100010011101,0b110011000101111,0b110001100011000,0b110110001000001,0b110100101110110,0b001011010001001,0b001001110111110,0b001110011100111,0b001100111010000,0b000011101100010,0b000001001010101,0b000110100001100,0b000100000111011,0b011010101011111,0b011000001101000,0b011111100110001,0b011101000000110,0b010010010110100,0b010000110000011,0b010111011011010,0b010101111101101];
+
+  // Número de blocos/EC ECC M por versão [blocosTotais, ecPorBloco, [b1count,b1data,...]]
+  const EC_M=[[],[1,10,[1,16]],[1,16,[1,28]],[1,26,[1,44]],[2,18,[2,32]],[2,24,[2,43]],[4,16,[4,27]],[4,18,[4,31]],[4,22,[2,38,2,39]],[5,22,[3,36,2,37]],[6,26,[4,43,1,44]],[6,24,[1,50,4,51]],[6,24,[6,36,2,37]],[6,22,[8,37,1,38]],[7,24,[4,40,5,41]],[8,24,[5,41,5,42]],[8,24,[7,45,3,46]],[9,28,[10,46,1,47]],[9,28,[9,43,4,44]],[10,26,[3,44,11,45]],[12,26,[3,41,13,42]],[12,26,[17,42]],[12,28,[17,46]],[11,30,[4,47,14,48]],[12,30,[6,45,14,46]],[12,30,[8,47,13,48]],[13,30,[19,46,4,47]],[13,30,[22,45,3,46]],[14,30,[3,45,23,46]],[14,30,[21,45,7,46]],[15,30,[19,45,10,46]]];
+
+  function encode(text) {
+    const bytes = new TextEncoder().encode(text);
+    const n = bytes.length;
+    const ver = getVer(n + 2);
+    const size = ver*4+17;
+    // módulos: 0=vazio,1=escuro,2=claro reservado,3=escuro reservado
+    const mod = Array.from({length:size},()=>new Uint8Array(size));
+
+    function set(r,c,v){if(r>=0&&r<size&&c>=0&&c<size)mod[r][c]=v;}
+    function finder(r,c){for(let i=0;i<7;i++)for(let j=0;j<7;j++)set(r+i,c+j,(i===0||i===6||j===0||j===6||( i>=2&&i<=4&&j>=2&&j<=4))?3:2);}
+    function sepH(r,c1,c2){for(let c=c1;c<=c2;c++)set(r,c,2);}
+    function sepV(c,r1,r2){for(let r=r1;r<=r2;r++)set(r,c,2);}
+
+    // Finders
+    finder(0,0);finder(0,size-7);finder(size-7,0);
+    sepH(7,0,8);sepH(7,size-8,size-1);sepH(size-8,0,7);
+    sepV(7,0,8);sepV(7,size-8,size-1);sepV(size-8,0,7);
+
+    // Timing
+    for(let i=8;i<size-8;i++){if(!mod[6][i])set(6,i,i%2?2:3);if(!mod[i][6])set(i,6,i%2?2:3);}
+
+    // Dark module
+    set(size-8,8,3);
+
+    // Alignment
+    const ap=ALIGN[ver];
+    for(let ai=0;ai<ap.length;ai++)for(let aj=0;aj<ap.length;aj++){
+      const r=ap[ai],c=ap[aj];
+      if(mod[r][c])continue;
+      for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++)set(r+i,c+j,(Math.abs(i)===2||Math.abs(j)===2||( i===0&&j===0))?3:2);
+    }
+
+    // Format reserva
+    const fmtPos=[[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+    const fmtPos2=[[size-1,8],[size-2,8],[size-3,8],[size-4,8],[size-5,8],[size-6,8],[size-7,8],[8,size-8],[8,size-7],[8,size-6],[8,size-5],[8,size-4],[8,size-3],[8,size-2],[8,size-1]];
+    fmtPos.forEach(([r,c])=>set(r,c,2));fmtPos2.forEach(([r,c])=>set(r,c,2));
+
+    // Version info (ver>=7)
+    if(ver>=7){
+      // versão codificada (omitido por brevidade — suportamos até v6 sem isso)
+    }
+
+    // --- Dados ---
+    // Bitstream
+    const bits=[];
+    function pushBits(v,n){for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);}
+    pushBits(0b0100,4); // modo byte
+    pushBits(n,8);      // comprimento
+    bytes.forEach(b=>pushBits(b,8));
+    pushBits(0,4);      // terminador
+
+    // EC config
+    const [,ecPer,blocks]=EC_M[ver];
+    let totalDC=0; const binfo=[];
+    for(let i=0;i<blocks.length;i+=2){const cnt=blocks[i],dc=blocks[i+1];for(let b=0;b<cnt;b++){binfo.push(dc);totalDC+=dc;}}
+    const totalEC=binfo.length*ecPer;
+    const totalCW=totalDC+totalEC;
+
+    // Pad bits para múltiplo de 8
+    while(bits.length%8)bits.push(0);
+    // Pad codewords
+    const padBytes=[0b11101100,0b00010001];
+    const dataCW=[];for(let i=0;i<bits.length;i+=8)dataCW.push(bits.slice(i,i+8).reduce((a,b,k)=>a|(b<<(7-k)),0));
+    let pi=0;while(dataCW.length<totalDC)dataCW.push(padBytes[pi++%2]);
+
+    // Divide em blocos + EC
+    const dcBlocks=[],ecBlocks=[];let off=0;
+    binfo.forEach(dc=>{const d=new Uint8Array(dataCW.slice(off,off+dc));dcBlocks.push(d);ecBlocks.push(rsEncode(d,ecPer));off+=dc;});
+
+    // Interleave
+    const idata=[];
+    const maxDC=Math.max(...binfo);
+    for(let i=0;i<maxDC;i++)dcBlocks.forEach(b=>{if(i<b.length)idata.push(b[i]);});
+    for(let i=0;i<ecPer;i++)ecBlocks.forEach(b=>idata.push(b[i]));
+
+    // Final bitstream
+    const fBits=[];idata.forEach(b=>pushBits.call({},b,8));
+    function pushBits2(v,n){for(let i=n-1;i>=0;i--)fBits.push((v>>i)&1);}
+    idata.forEach(b=>{for(let i=7;i>=0;i--)fBits.push((b>>i)&1);});
+    while(fBits.length<totalCW*8)fBits.push(0);
+
+    // Colocar bits no grid (zig-zag)
+    let bi=0;
+    const isReserved=r=>c=>mod[r]&&mod[r][c]>1;
+    for(let col=size-1;col>0;col-=2){
+      if(col===6)col--;
+      for(let row=0;row<size;row++){
+        const rr=( Math.floor((size-1-col)/2)%2===0)?row:size-1-row;
+        for(let dc=0;dc<2;dc++){
+          const c=col-dc;
+          if(mod[rr][c]<=1&&bi<fBits.length){mod[rr][c]=fBits[bi++]?1:0;}
+        }
+      }
+    }
+
+    // Máscara 0 (i+j)%2===0 → melhor para texto URL
+    const MASK=0; // máscara 0
+    for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(mod[r][c]<=1){if((r+c)%2===0)mod[r][c]^=1;}
+
+    // Aplicar formato (ECC M + máscara 0 = índice 0*8+0... tabela FMT_M índice mask*8+eccLevel, mas ECC M=0b00 e mask=0 → FMT_M[8*0+0])
+    const fmtBits=FMT_M[MASK]; // mask index para ECC M
+    const fmtArr=[];for(let i=14;i>=0;i--)fmtArr.push((fmtBits>>i)&1);
+    fmtPos.forEach(([r,c],i)=>set(r,c,fmtArr[i]?3:2));
+    fmtPos2.forEach(([r,c],i)=>set(r,c,fmtArr[i]?3:2));
+
+    return {mod,size};
+  }
+
+  function draw(text, canvasEl, px=4) {
+    const {mod,size}=encode(text);
+    const quiet=4;
+    const total=(size+quiet*2)*px;
+    canvasEl.width=canvasEl.height=total;
+    const ctx=canvasEl.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,total,total);
+    ctx.fillStyle='#000000';
+    for(let r=0;r<size;r++)for(let c=0;c<size;c++){
+      if(mod[r][c]===1||mod[r][c]===3)ctx.fillRect((c+quiet)*px,(r+quiet)*px,px,px);
+    }
+  }
+
+  return {draw};
+})();
+
+// ============================================================
+//  FERRAMENTAS: LINK E QR CODE  (100% local, zero CDN)
+// ============================================================
+function gerarQRCode() {
+  const inputEl   = document.getElementById('meu-link-input');
+  const container = document.getElementById('qrcode-container');
+  if (!inputEl || !container) return;
+  const link = inputEl.value.trim();
+  if (!link) { toast('O link do cardápio ainda não foi gerado!', 'error'); return; }
+
+  container.innerHTML = `
+    <div style="display:inline-block;background:#fff;padding:12px;border-radius:10px;border:2px solid var(--border);margin-top:8px">
+      <canvas id="qr-canvas" style="display:block;border-radius:4px"></canvas>
+      <p style="text-align:center;font-size:10px;color:#888;margin-top:6px">Escaneie para abrir o cardápio</p>
+    </div>`;
+
+  try {
+    QRGen.draw(link, document.getElementById('qr-canvas'), 4);
+    toast('QR Code gerado!', 'success');
+  } catch(e) {
+    container.innerHTML = `<p style="color:var(--red);font-size:12px">Erro ao gerar QR Code: ${e.message}</p>`;
+  }
+}
+
+function baixarQRCode() {
+  const canvas = document.getElementById('qr-canvas');
+  if (!canvas) { toast('Gere o QR Code antes de baixar!', 'error'); return; }
+  const a = document.createElement('a');
+  a.download = 'qrcode-cardapio.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+  toast('QR Code baixado!', 'success');
+}
+
+// FIX: função única (duplicata removida)
+function copiarLink() {
+  const el = document.getElementById('meu-link-input');
+  if (!el || !el.value) return;
+  el.select();
+  el.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(el.value);
+  toast('Link copiado!', 'success');
+}
+
+// ============================================================
+//  ESTOQUE
+// ============================================================
+async function renderEstoque() {
+  document.getElementById('topbar-actions').innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="relatorioN8n()">📧 Relatório n8n</button>
+    <button class="btn btn-gold btn-sm"    onclick="novoEstoque()">+ Novo Item</button>`;
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="filters" style="margin-bottom:20px">
+      <input type="text" class="input-field" id="fe-q" placeholder="🔍 Buscar..." style="width:200px" oninput="filtrarEst()">
+      <select class="input-field" id="fe-cat" onchange="filtrarEst()">
+        <option value="">Todas</option><option>Alimento</option><option>Bebida</option><option>Embalagem</option><option>Insumo</option>
+      </select>
+      <select class="input-field" id="fe-al" onchange="filtrarEst()">
+        <option value="">Todos</option><option value="zerado">Zerado</option><option value="critico">Crítico</option><option value="vencido">Vencido</option>
+      </select>
+    </div>
+    <div style="text-align:center;padding:32px" id="est-load"><div class="spinner"></div></div>
+    <div id="est-alert"></div>
+    <div class="table-wrap" id="est-tbl"></div>`;
+  try {
+    allEstoque = await sb.select('estoque', `slug=eq.${getSlug()}&order=nome`);
+    document.getElementById('est-load').style.display = 'none';
+    filtrarEst();
+  } catch (e) {
+    document.getElementById('est-load').innerHTML = `<p style="color:var(--red)">Erro: ${e.message}</p>`;
+  }
+}
+
+function filtrarEst() {
+  const q   = (document.getElementById('fe-q')?.value || '').toLowerCase();
+  const cat = document.getElementById('fe-cat')?.value || '';
+  const al  = document.getElementById('fe-al')?.value  || '';
+  const items = allEstoque.filter(e => {
+    const mq = !q   || e.nome.toLowerCase().includes(q);
+    const mc = !cat || e.categoria === cat;
+    const ma = !al  ||
+      (al === 'zerado'  && e.quantidade === 0) ||
+      (al === 'critico' && e.quantidade > 0 && e.quantidade < e.minimo) ||
+      (al === 'vencido' && isVencido(e.validade));
+    return mq && mc && ma;
+  });
+  const crit = allEstoque.filter(e => e.quantidade === 0 || e.quantidade < e.minimo || isVencido(e.validade));
+  const alertEl = document.getElementById('est-alert');
+  if (alertEl) alertEl.innerHTML = crit.length
+    ? `<div class="alert-bar">⚠️ <strong>${crit.length} alerta(s):</strong> ${crit.map(e => e.nome).join(', ')}</div>`
+    : '';
+  const el = document.getElementById('est-tbl');
+  if (!el) return;
+  el.innerHTML = `<table><thead><tr><th>Item</th><th>Cat.</th><th>Qtd</th><th>Custo</th><th>Validade</th><th>Alerta</th><th>Ações</th></tr></thead>
+  <tbody>${items.map(e => {
+    const v = isVencido(e.validade);
+    const z = e.quantidade === 0;
+    const cr = !z && e.quantidade < e.minimo;
+    return `<tr class="${v || z ? 'row-critical' : cr ? 'row-warn' : ''}">
+      <td><b>${e.nome}</b></td>
+      <td><span class="badge badge-gray">${e.categoria}</span></td>
+      <td><b style="color:${z ? 'var(--red)' : cr ? 'var(--gold)' : 'var(--text)'}">${e.quantidade} ${e.unidade}</b></td>
+      <td style="color:var(--text2)">R$ ${Number(e.custo || 0).toFixed(2)}</td>
+      <td style="color:${v ? 'var(--red)' : 'var(--text2)'}">${e.validade ? new Date(e.validade + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td>
+      <td>${z ? '<span class="badge badge-red">⚠ REPOR</span>' : v ? '<span class="badge badge-red">⏰ VENCIDO</span>' : cr ? '<span class="badge badge-gold">📉 CRÍTICO</span>' : '<span class="badge badge-green">✔ OK</span>'}</td>
+      <td><div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-icon" onclick="editarEstoque(${e.id})">✏️</button>
+        <button class="btn btn-red btn-icon"     onclick="deletarEstoque(${e.id})">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function novoEstoque() {
+  editingId = null;
+  document.getElementById('em-title').textContent = '📦 Novo Item';
+  ['em-nome', 'em-qtd', 'em-custo', 'em-val', 'em-min'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('em-cat').value = 'Alimento';
+  document.getElementById('em-uni').value = 'un';
+  openModal('estoque-modal');
+}
+
+function editarEstoque(id) {
+  const e = allEstoque.find(x => x.id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById('em-title').textContent = `✏️ Editar: ${e.nome}`;
+  document.getElementById('em-nome').value  = e.nome;
+  document.getElementById('em-cat').value   = e.categoria;
+  document.getElementById('em-qtd').value   = e.quantidade;
+  document.getElementById('em-uni').value   = e.unidade;
+  document.getElementById('em-custo').value = e.custo || '';
+  document.getElementById('em-val').value   = e.validade || '';
+  document.getElementById('em-min').value   = e.minimo;
+  openModal('estoque-modal');
+}
+
+async function salvarEstoque() {
+  const btn  = document.getElementById('btn-se');
+  const nome = document.getElementById('em-nome').value.trim();
+  if (!nome) { toast('Nome obrigatório!', 'error'); return; }
+  const qtd  = parseInt(document.getElementById('em-qtd').value) || 0;
+  const data = {
+    slug:          getSlug(),
+    nome,
+    categoria:     document.getElementById('em-cat').value,
+    quantidade:    qtd,
+    unidade:       document.getElementById('em-uni').value,
+    custo:         parseFloat(document.getElementById('em-custo').value) || 0,
+    validade:      document.getElementById('em-val').value || null,
+    minimo:        parseInt(document.getElementById('em-min').value) || 5,
+    atualizado_em: new Date().toISOString()
+  };
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    if (editingId) { await sb.update('estoque', editingId, data); }
+    else           { await sb.insert('estoque', data); }
+    if (qtd === 0) {
+      dispararWebhook('estoque.zerado', { nome, categoria: data.categoria });
+      toast(`⚠️ Estoque zerado: ${nome}`, 'error');
+    } else {
+      toast('Estoque atualizado!', 'success');
+    }
+    closeModal('estoque-modal');
+    allEstoque = await sb.select('estoque', `slug=eq.${getSlug()}&order=nome`);
+    filtrarEst();
+    updateBadges();
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '💾 Salvar'; }
+}
+
+async function deletarEstoque(id) {
+  solicitarSenha(async () => {
+    try {
+      await sb.del('estoque', id);
+      toast('Removido!', 'info');
+      allEstoque = await sb.select('estoque', `slug=eq.${getSlug()}&order=nome`);
+      filtrarEst();
+    } catch (e) { toast('Erro: ' + e.message, 'error'); }
+  });
+}
+
+async function relatorioN8n() {
+  if (!allEstoque.length) allEstoque = await sb.select('estoque', `slug=eq.${getSlug()}&order=nome`);
+  const crit = allEstoque.filter(e => e.quantidade === 0 || e.quantidade < e.minimo || isVencido(e.validade));
+  dispararWebhook('relatorio.critico', {
+    zerados:  crit.filter(e => e.quantidade === 0).map(e => e.nome),
+    criticos: crit.filter(e => e.quantidade > 0 && e.quantidade < e.minimo).map(e => e.nome),
+    vencidos: crit.filter(e => isVencido(e.validade)).map(e => e.nome)
+  });
+  toast(`📧 Relatório disparado (${crit.length} itens)`, 'info');
+}
+
+// ============================================================
+//  DASHBOARD
+// ============================================================
+async function renderDashboard() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-gold btn-sm" onclick="exportCSV()">📄 Exportar CSV</button>`;
+  const c = document.getElementById('content');
+  c.innerHTML = `<div style="text-align:center;padding:40px"><div class="spinner"></div></div>`;
+  try {
+    const peds = await sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`);
+    const conc = peds.filter(p => p.status === 'concluido');
+    const rec  = conc.reduce((s, p) => s + Number(p.total), 0);
+    const tick = conc.length ? rec / conc.length : 0;
+    const pgtos = {};
+    conc.forEach(p => { pgtos[p.pagamento] = (pgtos[p.pagamento] || 0) + 1; });
+    const horas = {};
+    conc.forEach(p => { const h = new Date(p.criado_em).getHours(); horas[h] = (horas[h] || 0) + Number(p.total); });
+    const hL = Object.keys(horas).sort((a, b) => a - b).map(h => h + 'h');
+    const hD = Object.keys(horas).sort((a, b) => a - b).map(h => horas[h]);
+    c.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">Receita Total</div><div class="kpi-value" style="color:var(--green)">R$ ${rec.toFixed(2)}</div><div class="kpi-sub">${conc.length} pedidos</div></div>
+        <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-label">Total Pedidos</div><div class="kpi-value" style="color:var(--gold)">${peds.length}</div><div class="kpi-sub">${peds.filter(p => p.status === 'cancelado').length} cancelados</div></div>
+        <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-label">Ticket Médio</div><div class="kpi-value" style="color:var(--blue)">R$ ${tick.toFixed(2)}</div></div>
+        <div class="kpi-card"><div class="kpi-icon">🏢</div><div class="kpi-label">Empresa</div><div class="kpi-value" style="color:var(--cyan);font-size:18px;line-height:1.2;margin-top:4px">${SESSION?.nome_empresa || '—'}</div><div class="kpi-sub">Plano: ${SESSION?.plano || '—'}</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">📈 Faturamento por Horário</div><canvas id="ch-fat" height="180"></canvas></div>
+        <div class="chart-card"><div class="chart-title">💳 Pagamentos</div><canvas id="ch-pgto" height="180"></canvas></div>
+      </div>`;
+    setTimeout(() => {
+      const fc = document.getElementById('ch-fat');
+      if (fc) new Chart(fc, { type: 'bar', data: { labels: hL.length ? hL : ['18h','19h','20h','21h'], datasets: [{ label: 'Receita (R$)', data: hD.length ? hD : [180,320,450,280], backgroundColor: 'rgba(245,166,35,0.7)', borderColor: '#f5a623', borderWidth: 1, borderRadius: 4 }] }, options: { responsive: true, plugins: { legend: { labels: { color: '#888' } } }, scales: { x: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } }, y: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } } } } });
+      const pc = document.getElementById('ch-pgto');
+      if (pc) new Chart(pc, { type: 'doughnut', data: { labels: Object.keys(pgtos).length ? Object.keys(pgtos) : ['PIX','Dinheiro'], datasets: [{ data: Object.values(pgtos).length ? Object.values(pgtos) : [4, 3], backgroundColor: ['#f5a623','#e63946','#2dc653','#3a86ff'], borderWidth: 0 }] }, options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#888', boxWidth: 12 } } } } });
+    }, 100);
+  } catch (e) { c.innerHTML = `<p style="color:var(--red);padding:24px">Erro: ${e.message}</p>`; }
+}
+
+async function exportCSV() {
+  const peds = await sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`);
+  const rows = [['#','Cliente','Telefone','Itens','Total','Pagamento','Entrega','Status','Data']];
+  peds.forEach(p => rows.push([
+    p.id, p.cliente_nome, p.telefone || '', `"${p.itens || ''}"`,
+    p.total, p.pagamento || '', p.entrega || '', p.status,
+    new Date(p.criado_em).toLocaleString('pt-BR')
+  ]));
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = `pedidos_${getSlug()}_${Date.now()}.csv`;
+  a.click();
+  toast('CSV exportado!', 'success');
+}
+
+// ============================================================
+//  CONFIG N8N
+// ============================================================
+function renderConfig() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div style="max-width:640px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:16px">📡 Webhook n8n</div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">URL do Webhook n8n</label>
+          <div style="display:flex;gap:10px">
+            <input type="text" class="input-field" id="cfg-n8n" value="${n8nUrl}" placeholder="https://seu-n8n.app.n8n.cloud/webhook/xxxx" style="flex:1">
+            <button class="btn btn-gold" onclick="salvarN8n()">💾 Salvar</button>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <div style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Testar eventos</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" onclick="dispararWebhook('pedido.criado',{teste:true})">🧪 Pedido Criado</button>
+            <button class="btn btn-outline btn-sm" onclick="dispararWebhook('estoque.zerado',{teste:true})">🧪 Estoque Zerado</button>
+            <button class="btn btn-outline btn-sm" onclick="dispararWebhook('relatorio.critico',{teste:true})">🧪 Relatório</button>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px">
+        <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:12px">ℹ️ Sessão Ativa</div>
+        <div style="font-size:13px;line-height:2;color:var(--text2)">
+          <b style="color:var(--text)">Empresa:</b> ${SESSION?.nome_empresa || '—'}<br>
+          <b style="color:var(--text)">E-mail:</b>  ${SESSION?.email || '—'}<br>
+          <b style="color:var(--text)">Slug:</b>    ${SESSION?.slug || '—'}<br>
+          <b style="color:var(--text)">Plano:</b>   ${SESSION?.plano || '—'}<br>
+          <b style="color:var(--text)">Sessão:</b>  Apenas nesta aba (sessionStorage)
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-red btn-sm" onclick="fazerLogout()">🚪 Fazer Logout</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function salvarN8n() {
+  n8nUrl = document.getElementById('cfg-n8n').value.trim();
+  sessionStorage.setItem('burgerops_n8n', n8nUrl);
+  toast('URL n8n salva!', 'success');
+}
+
+// ============================================================
+//  WEBHOOK DISPATCHER
+// ============================================================
+function dispararWebhook(evento, data) {
+  if (!n8nUrl) return;
+  fetch(n8nUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      evento,
+      slug:      getSlug(),
+      empresa:   SESSION?.nome_empresa,
+      modulo:    'delivery',
+      timestamp: new Date().toISOString(),
+      data
+    })
+  }).catch(() => {});
+}
+
+// ============================================================
+//  AUTH MODAL (senha admin)
+// ============================================================
+function solicitarSenha(cb) {
+  senhaCallback = cb;
+  document.getElementById('senha-input').value = '';
+  openModal('senha-modal');
+  setTimeout(() => document.getElementById('senha-input').focus(), 200);
+}
+
+function verificarSenha() {
+  const v      = document.getElementById('senha-input').value;
+  const stored = localStorage.getItem('admin_senha') || '1234';
+  if (v === stored) {
+    closeModal('senha-modal');
+    if (senhaCallback) { senhaCallback(); senhaCallback = null; }
+    toast('✔ Autorizado', 'success');
+  } else {
+    toast('Senha incorreta!', 'error');
+    document.getElementById('senha-input').value = '';
+    document.getElementById('senha-input').focus();
+  }
+}
+
+function closeSenha() { senhaCallback = null; closeModal('senha-modal'); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('senha-modal').classList.contains('open')) verificarSenha();
+  if (e.key === 'Escape') {
+    ['senha-modal', 'cardapio-modal', 'pedido-modal', 'estoque-modal', 'print-modal'].forEach(id => closeModal(id));
+  }
+});
+
+// ============================================================
+//  MODAIS
+// ============================================================
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => {
+  if (e.target === m) closeModal(m.id);
+}));
+
+// ============================================================
+//  TOAST
+// ============================================================
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${{ success: '✅', error: '❌', info: 'ℹ️' }[type] || 'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ============================================================
+//  IMPRESSÃO
+// ============================================================
+function imprimirComanda() {
+  const texto  = document.getElementById('print-content').innerText || document.getElementById('print-content').textContent;
+  const empresa = SESSION?.nome_empresa || 'BurgerOps Pro';
+  const win = window.open('', '_blank', 'width=600,height=800');
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Comanda — ${empresa}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: 80mm auto; margin: 6mm; }
+  body { font-family: 'Courier New', Courier, monospace; font-size: 11pt; line-height: 1.7; color: #000; background: #fff; padding: 8mm; width: 100%; }
+  pre  { white-space: pre-wrap; word-break: break-word; width: 100%; font-family: inherit; font-size: inherit; line-height: inherit; }
+  @media print { body { padding: 0; } @page { margin: 6mm; } }
+</style>
+</head>
+<body>
+<pre>${texto.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+<script>
+  window.onload = function() { window.focus(); window.print(); setTimeout(function(){ window.close(); }, 800); };
+<\/script>
+</body>
+</html>`);
+  win.document.close();
+}
+
+// ============================================================
+//  BOOT
+// ============================================================
+if (restaurarSessao()) {
+  abrirPainel();
+}
+</script>
+</body>
+</html>
