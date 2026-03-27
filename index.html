@@ -939,13 +939,21 @@ async function updateBadges() {
 // ============================================================
 function getSlug()    { return SESSION?.slug || ''; }
 function isVencido(v) { return v && new Date(v + 'T00:00:00') < new Date(); }
+function parseSupabaseDate(str) {
+  if (!str) return null;
+  const d = new Date(String(str).replace(' ', 'T'));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function timeAgo(iso) {
   if (!iso) return '—';
-  const d = Math.floor((Date.now() - new Date(iso)) / 60000);
-  if (d < 1)    return 'agora';
-  if (d < 60)   return d + 'min';
-  if (d < 1440) return Math.floor(d / 60) + 'h';
-  return Math.floor(d / 1440) + 'd';
+  const d = parseSupabaseDate(iso);
+  if (!d) return '—';
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1)    return 'agora';
+  if (mins < 60)   return mins + 'min';
+  if (mins < 1440) return Math.floor(mins / 60) + 'h';
+  return Math.floor(mins / 1440) + 'd';
 }
 
 // ============================================================
@@ -1284,7 +1292,8 @@ function imprimirPedido(id) {
   const cfg  = ST[p.status] || ST.novo;
   const agora = new Date();
   const dataImpressao = agora.toLocaleString('pt-BR');
-  const dataPedido = p.criado_em ? new Date(p.criado_em).toLocaleString('pt-BR') : dataImpressao;
+  const dtPedido = parseSupabaseDate(p.criado_em);
+  const dataPedido = dtPedido ? dtPedido.toLocaleString('pt-BR') : dataImpressao;
   document.getElementById('print-content').innerHTML =
 `================================
        ${SESSION?.nome_empresa || 'BurgerOps Pro'}
@@ -1996,7 +2005,7 @@ async function exportCSV() {
   peds.forEach(p => rows.push([
     p.id, p.cliente_nome, p.telefone || '', `"${p.itens || ''}"`,
     p.total, p.pagamento || '', p.entrega || '', p.status,
-    new Date(p.criado_em).toLocaleString('pt-BR')
+(parseSupabaseDate(p.criado_em)||new Date()).toLocaleString('pt-BR')
   ]));
   const csv = rows.map(r => r.join(';')).join('\n');
   const a = document.createElement('a');
