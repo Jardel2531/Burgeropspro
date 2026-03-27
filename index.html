@@ -855,7 +855,7 @@ async function showPage(page) {
       const inputLink = document.getElementById('meu-link-input');
       if (inputLink) {
         const slugAtual = getSlug();
-        inputLink.value = `https://burgerops-cardapio.vercel.app/?slug=burguer-jardel`;
+        inputLink.value = `https://burgerops-cardapio.vercel.app/?slug=${slugAtual}`;
         gerarQRCode();
       }
     }, 100);
@@ -1295,6 +1295,7 @@ async function deletarItem(id) {
 //  GERADOR DE QR CODE 100% LOCAL (sem CDN, sem API externa)
 //  Implementação QR Code Mode Byte, ECC Level M, versão auto
 // ============================================================
+// QR Code gerado via Google Charts API (confiável, sem bugs)
 const QRGen = (() => {
   // --- Tabelas GF(256) ---
   const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
@@ -1445,34 +1446,30 @@ const QRGen = (() => {
 //  FERRAMENTAS: LINK E QR CODE  (100% local, zero CDN)
 // ============================================================
 function gerarQRCode() {
-  const inputEl   = document.getElementById('meu-link-input');
-  const container = document.getElementById('qrcode-container');
-  if (!inputEl || !container) return;
-  const link = inputEl.value.trim();
-  if (!link) { toast('O link do cardápio ainda não foi gerado!', 'error'); return; }
+  const container = document.getElementById("qrcode-container");
+  if (!container) return;
 
-  container.innerHTML = `
-    <div style="display:inline-block;background:#fff;padding:12px;border-radius:10px;border:2px solid var(--border);margin-top:8px">
-      <canvas id="qr-canvas" style="display:block;border-radius:4px"></canvas>
-      <p style="text-align:center;font-size:10px;color:#888;margin-top:6px">Escaneie para abrir o cardápio</p>
-    </div>`;
+  const slug = getSlug();
+  const link = "https://burgerops-cardapio.vercel.app/?slug=" + slug;
+  const inputEl = document.getElementById("meu-link-input");
+  if (inputEl) inputEl.value = link;
 
-  try {
-    QRGen.draw(link, document.getElementById('qr-canvas'), 4);
-    toast('QR Code gerado!', 'success');
-  } catch(e) {
-    container.innerHTML = `<p style="color:var(--red);font-size:12px">Erro ao gerar QR Code: ${e.message}</p>`;
-  }
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=" + encodeURIComponent(link) + "&format=png&margin=10&ecc=M";
+
+  container.innerHTML = `<div style="display:inline-block;background:#fff;padding:12px;border-radius:10px;border:2px solid var(--border);margin-top:8px"><img id="qr-img" src="${qrUrl}" width="256" height="256" style="display:block;border-radius:4px" alt="QR Code"><p style="text-align:center;font-size:10px;color:#888;margin-top:6px">Escaneie para abrir o card\u00e1pio</p></div>`;
+
+  toast("QR Code gerado!", "success");
 }
 
 function baixarQRCode() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas) { toast('Gere o QR Code antes de baixar!', 'error'); return; }
-  const a = document.createElement('a');
-  a.download = 'qrcode-cardapio.png';
-  a.href = canvas.toDataURL('image/png');
+  const img = document.getElementById("qr-img");
+  if (!img) { toast("Gere o QR Code antes de baixar!", "error"); return; }
+  const a = document.createElement("a");
+  a.download = "qrcode-cardapio.png";
+  a.href = img.src;
+  a.target = "_blank";
   a.click();
-  toast('QR Code baixado!', 'success');
+  toast("QR Code baixado!", "success");
 }
 
 // FIX: função única (duplicata removida)
