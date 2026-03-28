@@ -941,8 +941,13 @@ function getSlug()    { return SESSION?.slug || ''; }
 function isVencido(v) { return v && new Date(v + 'T00:00:00') < new Date(); }
 function parseSupabaseDate(str) {
   if (!str) return null;
-  const d = new Date(String(str).replace(' ', 'T'));
-  return isNaN(d.getTime()) ? null : d;
+  // Trata: "2026-03-27 17:32:10", "2026-03-27T17:32:10Z", "2026-03-27T17:32:10+00:00"
+  const s = String(str).trim().replace(' ', 'T');
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+  // fallback: tenta sem fuso
+  const d2 = new Date(s.replace(/[+-]\d{2}:\d{2}$/, '').replace(/Z$/, '') + 'Z');
+  return isNaN(d2.getTime()) ? null : d2;
 }
 
 function timeAgo(iso) {
