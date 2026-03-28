@@ -1112,7 +1112,7 @@ function filtrarPed() {
 }
 
 function renderKanban(ps) {
-  return `<div class="kanban" style="grid-template-columns:repeat(5,1fr)">${['novo', 'preparo', 'pronto', 'entrega', 'concluido'].map(col => {
+  return `<div class="kanban">${['novo', 'preparo', 'pronto', 'entrega'].map(col => {
     const its = ps.filter(p => p.status === col);
     const cfg = ST[col];
     return `<div class="kanban-col">
