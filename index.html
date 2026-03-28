@@ -2108,10 +2108,24 @@ function renderConfig() {
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px">
         <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:6px">🛵 Calculadora de Frete</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">Configure o frete por km. O cliente digita o endereço no cardápio e o valor é calculado automaticamente.</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">Configure o frete por km usando <b style="color:var(--gold)">GraphHopper</b> (gratuito, sem cartão). O cliente digita o endereço e o valor é calculado automaticamente.</div>
         <div class="form-group">
-          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Endereço do Restaurante (origem)</label>
-          <input type="text" class="input-field" id="cfg-frete-origem" placeholder="Ex: Rua das Flores, 100, Centro, Ubá - MG" style="width:100%">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Chave API GraphHopper</label>
+          <input type="text" class="input-field" id="cfg-frete-graphkey" placeholder="ex: 1f7fc730-18cc-49b5-887a-264fb8c5a28d" style="width:100%">
+          <span style="font-size:11px;color:var(--text2);margin-top:4px">Gratuito em <b>graphhopper.com</b> — até 500 rotas/dia sem cartão.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Latitude do Restaurante</label>
+            <input type="text" class="input-field" id="cfg-frete-lat" placeholder="ex: -21.7026" style="width:100%">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Longitude do Restaurante</label>
+            <input type="text" class="input-field" id="cfg-frete-lon" placeholder="ex: -42.9398" style="width:100%">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:12px;background:var(--bg3);border-radius:8px;padding:10px 12px;line-height:1.7">
+          📍 Para encontrar as coordenadas do seu restaurante: acesse <b>maps.google.com</b>, clique com o botão direito no local e copie as coordenadas que aparecem no topo do menu.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
           <div class="form-group" style="margin:0">
@@ -2126,11 +2140,6 @@ function renderConfig() {
             <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Frete grátis acima de (R$)</label>
             <input type="number" class="input-field" id="cfg-frete-gratis" placeholder="80" min="0" style="width:100%">
           </div>
-        </div>
-        <div class="form-group">
-          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Chave da API Google Maps</label>
-          <input type="text" class="input-field" id="cfg-frete-apikey" placeholder="AIza..." style="width:100%">
-          <span style="font-size:11px;color:var(--text2);margin-top:4px">Ative a API <b>Distance Matrix</b> no Google Cloud Console.</span>
         </div>
         <button class="btn btn-gold" onclick="salvarFrete()">💾 Salvar Configuração de Frete</button>
         <div id="cfg-frete-status" style="margin-top:10px;font-size:12px;color:var(--green);display:none">✅ Configuração salva!</div>
@@ -2153,26 +2162,28 @@ function renderConfig() {
   // Carregar valores salvos de frete
   const fc = JSON.parse(localStorage.getItem('burgerops_frete') || '{}');
   setTimeout(() => {
-    const o = document.getElementById('cfg-frete-origem'); if (!o) return;
-    o.value = fc.origem || '';
-    document.getElementById('cfg-frete-km').value     = fc.km     || '';
-    document.getElementById('cfg-frete-raio').value   = fc.raio   || '';
-    document.getElementById('cfg-frete-gratis').value = fc.gratis || '';
-    document.getElementById('cfg-frete-apikey').value = fc.apikey || '';
+    const o = document.getElementById('cfg-frete-graphkey'); if (!o) return;
+    o.value = fc.graphKey  || '';
+    document.getElementById('cfg-frete-lat').value      = fc.origemLat || '';
+    document.getElementById('cfg-frete-lon').value      = fc.origemLon || '';
+    document.getElementById('cfg-frete-km').value       = fc.km        || '';
+    document.getElementById('cfg-frete-raio').value     = fc.raio      || '';
+    document.getElementById('cfg-frete-gratis').value   = fc.gratis    || '';
   }, 50);
 }
 
 async function salvarFrete() {
   const fc = {
-    origem:  document.getElementById('cfg-frete-origem').value.trim(),
-    km:      parseFloat(document.getElementById('cfg-frete-km').value) || 0,
-    raio:    parseFloat(document.getElementById('cfg-frete-raio').value) || 0,
-    gratis:  parseFloat(document.getElementById('cfg-frete-gratis').value) || 0,
-    apikey:  document.getElementById('cfg-frete-apikey').value.trim()
+    graphKey:  document.getElementById('cfg-frete-graphkey').value.trim(),
+    origemLat: parseFloat(document.getElementById('cfg-frete-lat').value) || 0,
+    origemLon: parseFloat(document.getElementById('cfg-frete-lon').value) || 0,
+    km:        parseFloat(document.getElementById('cfg-frete-km').value) || 0,
+    raio:      parseFloat(document.getElementById('cfg-frete-raio').value) || 0,
+    gratis:    parseFloat(document.getElementById('cfg-frete-gratis').value) || 0,
   };
-  if (!fc.origem) { toast('Informe o endereço do restaurante!', 'error'); return; }
-  if (!fc.km)     { toast('Informe o valor por km!', 'error'); return; }
-  if (!fc.apikey) { toast('Informe a chave da API Google Maps!', 'error'); return; }
+  if (!fc.graphKey)  { toast('Informe a chave API GraphHopper!', 'error'); return; }
+  if (!fc.origemLat || !fc.origemLon) { toast('Informe as coordenadas do restaurante!', 'error'); return; }
+  if (!fc.km)        { toast('Informe o valor por km!', 'error'); return; }
   localStorage.setItem('burgerops_frete', JSON.stringify(fc));
   // Salvar no Supabase master para o cardápio buscar
   try {
