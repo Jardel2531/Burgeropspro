@@ -2176,7 +2176,7 @@ async function salvarFrete() {
   localStorage.setItem('burgerops_frete', JSON.stringify(fc));
   // Salvar no Supabase master para o cardápio buscar
   try {
-    await fetch(`${MASTER_URL}/rest/v1/config_clientes?slug=eq.${getSlug()}`, {
+    const r = await fetch(`${MASTER_URL}/rest/v1/config_clientes?slug=eq.${getSlug()}`, {
       method: 'PATCH',
       headers: {
         apikey: MASTER_KEY, Authorization: 'Bearer ' + MASTER_KEY,
@@ -2184,7 +2184,13 @@ async function salvarFrete() {
       },
       body: JSON.stringify({ frete: JSON.stringify(fc) })
     });
-  } catch(e) { console.warn('Não foi possível salvar frete no Supabase:', e); }
+    if (!r.ok) {
+      const err = await r.text();
+      console.error('Erro ao salvar frete no Supabase:', err);
+      toast('⚠️ Frete salvo localmente mas erro no servidor: ' + r.status, 'error');
+      return;
+    }
+  } catch(e) { console.warn('Não foi possível salvar frete no Supabase:', e); toast('⚠️ Erro de conexão ao salvar frete.', 'error'); return; }
   const st = document.getElementById('cfg-frete-status');
   if (st) { st.style.display = 'block'; setTimeout(() => st.style.display = 'none', 3000); }
   toast('✅ Configuração de frete salva!', 'success');
