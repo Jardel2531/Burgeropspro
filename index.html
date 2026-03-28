@@ -2162,7 +2162,7 @@ function renderConfig() {
   }, 50);
 }
 
-function salvarFrete() {
+async function salvarFrete() {
   const fc = {
     origem:  document.getElementById('cfg-frete-origem').value.trim(),
     km:      parseFloat(document.getElementById('cfg-frete-km').value) || 0,
