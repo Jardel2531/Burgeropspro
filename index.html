@@ -2106,6 +2106,35 @@ function renderConfig() {
         </div>
         <button class="btn btn-gold" onclick="alterarSenhaAdmin()">🔑 Alterar Senha</button>
       </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:6px">🛵 Calculadora de Frete</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">Configure o frete por km. O cliente digita o endereço no cardápio e o valor é calculado automaticamente.</div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Endereço do Restaurante (origem)</label>
+          <input type="text" class="input-field" id="cfg-frete-origem" placeholder="Ex: Rua das Flores, 100, Centro, Ubá - MG" style="width:100%">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Valor por km (R$)</label>
+            <input type="number" class="input-field" id="cfg-frete-km" placeholder="2.00" step="0.50" min="0" style="width:100%">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Raio máximo (km)</label>
+            <input type="number" class="input-field" id="cfg-frete-raio" placeholder="10" min="1" style="width:100%">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Frete grátis acima de (R$)</label>
+            <input type="number" class="input-field" id="cfg-frete-gratis" placeholder="80" min="0" style="width:100%">
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Chave da API Google Maps</label>
+          <input type="text" class="input-field" id="cfg-frete-apikey" placeholder="AIza..." style="width:100%">
+          <span style="font-size:11px;color:var(--text2);margin-top:4px">Ative a API <b>Distance Matrix</b> no Google Cloud Console.</span>
+        </div>
+        <button class="btn btn-gold" onclick="salvarFrete()">💾 Salvar Configuração de Frete</button>
+        <div id="cfg-frete-status" style="margin-top:10px;font-size:12px;color:var(--green);display:none">✅ Configuração salva!</div>
+      </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px">
         <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:12px">ℹ️ Sessão Ativa</div>
         <div style="font-size:13px;line-height:2;color:var(--text2)">
@@ -2120,6 +2149,45 @@ function renderConfig() {
         </div>
       </div>
     </div>`;
+
+  // Carregar valores salvos de frete
+  const fc = JSON.parse(localStorage.getItem('burgerops_frete') || '{}');
+  setTimeout(() => {
+    const o = document.getElementById('cfg-frete-origem'); if (!o) return;
+    o.value = fc.origem || '';
+    document.getElementById('cfg-frete-km').value     = fc.km     || '';
+    document.getElementById('cfg-frete-raio').value   = fc.raio   || '';
+    document.getElementById('cfg-frete-gratis').value = fc.gratis || '';
+    document.getElementById('cfg-frete-apikey').value = fc.apikey || '';
+  }, 50);
+}
+
+function salvarFrete() {
+  const fc = {
+    origem:  document.getElementById('cfg-frete-origem').value.trim(),
+    km:      parseFloat(document.getElementById('cfg-frete-km').value) || 0,
+    raio:    parseFloat(document.getElementById('cfg-frete-raio').value) || 0,
+    gratis:  parseFloat(document.getElementById('cfg-frete-gratis').value) || 0,
+    apikey:  document.getElementById('cfg-frete-apikey').value.trim()
+  };
+  if (!fc.origem) { toast('Informe o endereço do restaurante!', 'error'); return; }
+  if (!fc.km)     { toast('Informe o valor por km!', 'error'); return; }
+  if (!fc.apikey) { toast('Informe a chave da API Google Maps!', 'error'); return; }
+  localStorage.setItem('burgerops_frete', JSON.stringify(fc));
+  // Salvar no Supabase master para o cardápio buscar
+  try {
+    await fetch(`${MASTER_URL}/rest/v1/config_clientes?slug=eq.${getSlug()}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: MASTER_KEY, Authorization: 'Bearer ' + MASTER_KEY,
+        'Content-Type': 'application/json', Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ frete: JSON.stringify(fc) })
+    });
+  } catch(e) { console.warn('Não foi possível salvar frete no Supabase:', e); }
+  const st = document.getElementById('cfg-frete-status');
+  if (st) { st.style.display = 'block'; setTimeout(() => st.style.display = 'none', 3000); }
+  toast('✅ Configuração de frete salva!', 'success');
 }
 
 function formatarItens(itens, maxLen) {
