@@ -913,7 +913,8 @@ async function showPage(page) {
       const inputLink = document.getElementById('meu-link-input');
       if (inputLink) {
         const slugAtual = getSlug();
-        inputLink.value = `https://burgerops-cardapio.vercel.app/?slug=burguer-jardel`;
+        const base = location.href.replace('index.html','').replace(/\/+$/,'');
+        inputLink.value = `${base}/cardapio.html?slug=${slugAtual}`;
         gerarQRCode();
       }
     }, 100);
@@ -969,6 +970,7 @@ const ST = {
   preparo:   { label: '🔥 Preparo',   badge: 'badge-gold',  col: '#f5a623' },
   pronto:    { label: '✅ Pronto',    badge: 'badge-cyan',  col: '#00b4d8' },
   entrega:   { label: '🛵 Entrega',   badge: 'badge-cyan',  col: '#7209b7' },
+  concluido: { label: '🏁 Concluído', badge: 'badge-gray',  col: '#888'    },
   concluido: { label: '🎉 Concluído', badge: 'badge-green', col: '#2dc653' },
   cancelado: { label: '❌ Cancelado', badge: 'badge-red',   col: '#e63946' },
 };
@@ -1111,7 +1113,7 @@ function filtrarPed() {
 }
 
 function renderKanban(ps) {
-  return `<div class="kanban">${['novo', 'preparo', 'pronto', 'entrega'].map(col => {
+  return `<div class="kanban" style="grid-template-columns:repeat(5,1fr)">${['novo', 'preparo', 'pronto', 'entrega', 'concluido'].map(col => {
     const its = ps.filter(p => p.status === col);
     const cfg = ST[col];
     return `<div class="kanban-col">
@@ -1127,24 +1129,33 @@ function renderKanban(ps) {
           const endereco   = p.endereco || p.endereco_entrega || p.observacao || '';
           const pgBg = {'PIX':'#2dc653','Dinheiro':'#f5a623','Cartão de Crédito':'#3a86ff','Cartão de Débito':'#00b4d8'}[p.pagamento] || '#888';
           return `
-          <div class="pedido-card" onclick="editarPedido(${p.id})">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-              <div class="num">#${p.id}</div>
-              <div class="ptime">${timeAgo(p.criado_em)}</div>
+          <div style="margin-bottom:8px">
+            <div class="pedido-card" onclick="editarPedido(${p.id})" style="cursor:pointer;margin-bottom:0;border-radius:10px 10px 0 0">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+                <div class="num">#${p.id}</div>
+                <div class="ptime">${timeAgo(p.criado_em)}</div>
+              </div>
+              <div class="cli">${p.cliente_nome}</div>
+              ${p.telefone ? `<div style="font-size:11px;color:var(--text2);margin-bottom:2px">📞 ${p.telefone}</div>` : ''}
+              ${isMesa && mesa ? `<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(245,166,35,.15);color:var(--gold);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;margin-bottom:4px">🪑 ${mesa}</div>` : ''}
+              ${isDelivery && endereco ? `<div style="font-size:11px;color:var(--cyan);margin-bottom:4px">📍 ${endereco.substring(0,48)}${endereco.length>48?'…':''}</div>` : ''}
+              <div class="pit" style="margin-top:2px">${formatarItens(p.itens, 52)}</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+                <div class="pval">R$ ${Number(p.total).toFixed(2)}</div>
+                ${p.pagamento ? `<span style="font-size:10px;font-weight:800;background:${pgBg}22;color:${pgBg};border:1px solid ${pgBg}44;border-radius:8px;padding:2px 7px">${p.pagamento}</span>` : ''}
+              </div>
+              <div style="margin-top:8px;display:flex;gap:6px">
+                <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();wppPedido(${p.id})">📲</button>
+                <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();imprimirPedido(${p.id})">🖨️</button>
+                <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deletarPedido(${p.id})" title="Excluir">🗑️</button>
+              </div>
             </div>
-            <div class="cli">${p.cliente_nome}</div>
-            ${p.telefone ? `<div style="font-size:11px;color:var(--text2);margin-bottom:2px">📞 ${p.telefone}</div>` : ''}
-            ${isMesa && mesa ? `<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(245,166,35,.15);color:var(--gold);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;margin-bottom:4px">🪑 ${mesa}</div>` : ''}
-            ${isDelivery && endereco ? `<div style="font-size:11px;color:var(--cyan);margin-bottom:4px">📍 ${endereco.substring(0,48)}${endereco.length>48?'…':''}</div>` : ''}
-            <div class="pit" style="margin-top:2px">${formatarItens(p.itens, 52)}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-              <div class="pval">R$ ${Number(p.total).toFixed(2)}</div>
-              ${p.pagamento ? `<span style="font-size:10px;font-weight:800;background:${pgBg}22;color:${pgBg};border:1px solid ${pgBg}44;border-radius:8px;padding:2px 7px">${p.pagamento}</span>` : ''}
-            </div>
-            <div style="margin-top:8px;display:flex;gap:6px">
-              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();wppPedido(${p.id})">📲</button>
-              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();imprimirPedido(${p.id})">🖨️</button>
-              <button class="btn btn-red btn-sm"     onclick="event.stopPropagation();cancelarPedido(${p.id})">✕</button>
+            <div style="background:var(--bg4);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:6px 8px;display:flex;gap:4px;flex-wrap:wrap">
+              ${['novo','preparo','pronto','entrega','concluido'].map(s => {
+                const sc = {novo:{l:'🆕 Novo',c:'#3a86ff'},preparo:{l:'🔥 Preparo',c:'#f5a623'},pronto:{l:'✅ Pronto',c:'#2dc653'},entrega:{l:'🛵 Entrega',c:'#7209b7'},concluido:{l:'🏁 Concluído',c:'#888'}}[s];
+                const ativo = p.status === s;
+                return `<button onclick="event.stopPropagation();mudarStatus(${p.id},'${s}')" style="flex:1;min-width:0;padding:4px 2px;font-size:9px;font-weight:800;border-radius:6px;border:1px solid ${sc.c}44;background:${ativo ? sc.c+'33' : 'transparent'};color:${ativo ? sc.c : 'var(--text2)'};cursor:pointer;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sc.l}</button>`;
+              }).join('')}
             </div>
           </div>`;
         }).join('') : `<div style="text-align:center;color:var(--text2);padding:32px;font-size:13px">Vazio</div>`}
@@ -1261,6 +1272,17 @@ async function salvarPedido() {
   finally { btn.disabled = false; btn.textContent = '💾 Salvar'; }
 }
 
+async function mudarStatus(id, novoStatus) {
+  try {
+    await sb.update('pedidos', id, { status: novoStatus, atualizado_em: new Date().toISOString() });
+    const p = allPedidos.find(x => x.id === id);
+    if (p) p.status = novoStatus;
+    filtrarPed();
+    const label = {novo:'Novo',preparo:'Preparo',pronto:'Pronto',entrega:'Entrega',concluido:'Concluído'}[novoStatus] || novoStatus;
+    toast(`Pedido #${id} → ${label}`, 'success');
+  } catch(e) { toast('Erro ao atualizar status: ' + e.message, 'error'); }
+}
+
 async function cancelarPedido(id) {
   if (!confirm(`Cancelar pedido #${id}?`)) return;
   try {
@@ -1352,7 +1374,7 @@ async function renderCardapio() {
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:24px">
       <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:16px">🔗 Link & QR Code do Cardápio</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-        <input type="text" class="input-field" id="meu-link-input" style="flex:1;min-width:260px" readonly placeholder="O link será gerado automaticamente...">
+        <input type="text" class="input-field" id="meu-link-input" style="flex:1;min-width:260px" placeholder="URL do cardápio..." oninput="document.getElementById('qrcode-container').innerHTML=''">
         <button class="btn btn-outline btn-sm" onclick="copiarLink()">📋 Copiar</button>
         <button class="btn btn-gold btn-sm"    onclick="gerarQRCode()">📷 Gerar QR</button>
         <button class="btn btn-outline btn-sm" onclick="baixarQRCode()">⬇️ Baixar QR</button>
@@ -1401,15 +1423,17 @@ function filtrarCard() {
 }
 
 function novoItem() {
-  editingId = null;
-  document.getElementById('cm-title').textContent = '🍔 Novo Item';
-  ['cm-nome', 'cm-desc'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('cm-emoji').value  = '🍔';
-  document.getElementById('cm-preco').value  = '';
-  document.getElementById('cm-cat').value    = 'Burgers';
-  document.getElementById('cm-status').value = 'disponivel';
-  limparImagem();
-  openModal('cardapio-modal');
+  solicitarSenha(() => {
+    editingId = null;
+    document.getElementById('cm-title').textContent = '🍔 Novo Item';
+    ['cm-nome', 'cm-desc'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cm-emoji').value  = '🍔';
+    document.getElementById('cm-preco').value  = '';
+    document.getElementById('cm-cat').value    = 'Burgers';
+    document.getElementById('cm-status').value = 'disponivel';
+    limparImagem();
+    openModal('cardapio-modal');
+  });
 }
 
 // ── IMAGEM DO CARDÁPIO ────────────────────────────────────────
@@ -1458,19 +1482,21 @@ function limparImagem() {
 }
 
 function editarItem(id) {
-  const i = allCardapio.find(x => x.id === id);
-  if (!i) return;
-  editingId = id;
-  document.getElementById('cm-title').textContent = `✏️ Editar: ${i.nome}`;
-  document.getElementById('cm-nome').value   = i.nome;
-  document.getElementById('cm-emoji').value  = i.emoji || '🍔';
-  document.getElementById('cm-cat').value    = i.categoria;
-  document.getElementById('cm-desc').value   = i.descricao || '';
-  document.getElementById('cm-preco').value  = i.preco;
-  document.getElementById('cm-status').value = i.status;
-  limparImagem();
-  if (i.imagem_url) setImgPreview(i.imagem_url);
-  openModal('cardapio-modal');
+  solicitarSenha(() => {
+    const i = allCardapio.find(x => x.id === id);
+    if (!i) return;
+    editingId = id;
+    document.getElementById('cm-title').textContent = `✏️ Editar: ${i.nome}`;
+    document.getElementById('cm-nome').value   = i.nome;
+    document.getElementById('cm-emoji').value  = i.emoji || '🍔';
+    document.getElementById('cm-cat').value    = i.categoria;
+    document.getElementById('cm-desc').value   = i.descricao || '';
+    document.getElementById('cm-preco').value  = i.preco;
+    document.getElementById('cm-status').value = i.status;
+    limparImagem();
+    if (i.imagem_url) setImgPreview(i.imagem_url);
+    openModal('cardapio-modal');
+  });
 }
 
 async function salvarCardapio() {
