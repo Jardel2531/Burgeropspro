@@ -1239,6 +1239,8 @@ async function salvarPedido() {
   const tot = parseFloat(document.getElementById('pm-total').value) || 0;
   if (!cli || !its || !tot) { toast('Campos obrigatórios!', 'error'); return; }
   const entr = document.getElementById('pm-entr').value;
+  const mesaVal    = entr === 'Mesa (Local)' ? (document.getElementById('pm-mesa').value || '') : null;
+  const enderecoVal = entr === 'Delivery'     ? (document.getElementById('pm-end').value  || '') : null;
   const data = {
     slug:              getSlug(),
     cliente_nome:      cli,
@@ -1247,10 +1249,14 @@ async function salvarPedido() {
     total:             tot,
     pagamento:         document.getElementById('pm-pgto').value,
     entrega:           entr,
+    tipo_entrega:      entr,
     status:            document.getElementById('pm-st').value,
     observacao:        document.getElementById('pm-obs').value,
-    numero_mesa:       entr === 'Mesa (Local)' ? (document.getElementById('pm-mesa').value || '') : null,
-    endereco_entrega:  entr === 'Delivery'      ? (document.getElementById('pm-end').value  || '') : null,
+    observacoes:       document.getElementById('pm-obs').value,
+    numero_mesa:       mesaVal,
+    mesa:              mesaVal,
+    endereco_entrega:  enderecoVal,
+    endereco:          enderecoVal,
     atualizado_em:     new Date().toISOString()
   };
   btn.disabled = true; btn.textContent = 'Salvando...';
