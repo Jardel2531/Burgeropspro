@@ -1715,14 +1715,15 @@ function gerarQRCode() {
   const link = inputEl.value.trim();
   if (!link) { toast('O link do cardápio ainda não foi gerado!', 'error'); return; }
 
-  const size = 256;
-  const url  = `https://chart.googleapis.com/chart?cht=qr&chs=${size}x${size}&chl=${encodeURIComponent(link)}&choe=UTF-8&chld=M|2`;
+  const size = 300;
+  // qr-server.com: API gratuita, sem bloqueio CORS, funciona com HTTPS
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(link)}&format=png&ecc=M&margin=10`;
 
   container.innerHTML = `
     <div style="display:inline-block;background:#fff;padding:16px;border-radius:12px;border:2px solid var(--border);margin-top:8px;box-shadow:0 4px 24px rgba(0,0,0,.4)">
       <img id="qr-img" src="${url}" width="${size}" height="${size}" style="display:block;border-radius:4px" alt="QR Code"
            onload="this.parentElement.querySelector('p').textContent='Escaneie para abrir o cardápio'"
-           onerror="this.parentElement.innerHTML='<p style=color:var(--red);padding:8px>Erro ao gerar QR. Verifique sua conexão.</p>'">
+           onerror="this.parentElement.innerHTML='<p style=\'color:var(--red);padding:8px;font-size:12px\'>Erro ao gerar QR. Verifique sua conexão.</p>'">
       <p style="text-align:center;font-size:11px;color:#555;margin-top:8px;font-weight:700">Carregando QR Code...</p>
     </div>`;
 
@@ -1732,7 +1733,6 @@ function gerarQRCode() {
 function baixarQRCode() {
   const img = document.getElementById('qr-img');
   if (!img) { toast('Gere o QR Code antes de baixar!', 'error'); return; }
-  // Baixa via fetch para contornar restrição CORS do canvas
   fetch(img.src)
     .then(r => r.blob())
     .then(blob => {
@@ -1743,9 +1743,8 @@ function baixarQRCode() {
       toast('QR Code baixado!', 'success');
     })
     .catch(() => {
-      // fallback: abre em nova aba para salvar manualmente
       window.open(img.src, '_blank');
-      toast('Clique com botão direito na imagem e salve!', 'info');
+      toast('Clique com botão direito na imagem e salve como PNG!', 'info');
     });
 }
 
