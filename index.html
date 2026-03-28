@@ -913,8 +913,7 @@ async function showPage(page) {
       const inputLink = document.getElementById('meu-link-input');
       if (inputLink) {
         const slugAtual = getSlug();
-        const base = location.href.replace('index.html','').replace(/\/+$/,'');
-        inputLink.value = `${base}/cardapio.html?slug=${slugAtual}`;
+        inputLink.value = `https://burgerops-cardapio.vercel.app/?slug=${slugAtual}`;
         gerarQRCode();
       }
     }, 100);
