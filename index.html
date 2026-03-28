@@ -1706,7 +1706,7 @@ const QRGen = (() => {
 })();
 
 // ============================================================
-//  FERRAMENTAS: LINK E QR CODE  (100% local, zero CDN)
+//  FERRAMENTAS: LINK E QR CODE (via Google Charts API)
 // ============================================================
 function gerarQRCode() {
   const inputEl   = document.getElementById('meu-link-input');
@@ -1715,28 +1715,38 @@ function gerarQRCode() {
   const link = inputEl.value.trim();
   if (!link) { toast('O link do cardápio ainda não foi gerado!', 'error'); return; }
 
+  const size = 256;
+  const url  = `https://chart.googleapis.com/chart?cht=qr&chs=${size}x${size}&chl=${encodeURIComponent(link)}&choe=UTF-8&chld=M|2`;
+
   container.innerHTML = `
     <div style="display:inline-block;background:#fff;padding:16px;border-radius:12px;border:2px solid var(--border);margin-top:8px;box-shadow:0 4px 24px rgba(0,0,0,.4)">
-      <canvas id="qr-canvas" style="display:block;border-radius:4px"></canvas>
-      <p style="text-align:center;font-size:11px;color:#555;margin-top:8px;font-weight:700">Escaneie para abrir o cardápio</p>
+      <img id="qr-img" src="${url}" width="${size}" height="${size}" style="display:block;border-radius:4px" alt="QR Code"
+           onload="this.parentElement.querySelector('p').textContent='Escaneie para abrir o cardápio'"
+           onerror="this.parentElement.innerHTML='<p style=color:var(--red);padding:8px>Erro ao gerar QR. Verifique sua conexão.</p>'">
+      <p style="text-align:center;font-size:11px;color:#555;margin-top:8px;font-weight:700">Carregando QR Code...</p>
     </div>`;
 
-  try {
-    QRGen.draw(link, document.getElementById('qr-canvas'), 7);
-    toast('QR Code gerado!', 'success');
-  } catch(e) {
-    container.innerHTML = `<p style="color:var(--red);font-size:12px">Erro ao gerar QR Code: ${e.message}</p>`;
-  }
+  toast('QR Code gerado!', 'success');
 }
 
 function baixarQRCode() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas) { toast('Gere o QR Code antes de baixar!', 'error'); return; }
-  const a = document.createElement('a');
-  a.download = 'qrcode-cardapio.png';
-  a.href = canvas.toDataURL('image/png');
-  a.click();
-  toast('QR Code baixado!', 'success');
+  const img = document.getElementById('qr-img');
+  if (!img) { toast('Gere o QR Code antes de baixar!', 'error'); return; }
+  // Baixa via fetch para contornar restrição CORS do canvas
+  fetch(img.src)
+    .then(r => r.blob())
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'qrcode-cardapio.png';
+      a.click();
+      toast('QR Code baixado!', 'success');
+    })
+    .catch(() => {
+      // fallback: abre em nova aba para salvar manualmente
+      window.open(img.src, '_blank');
+      toast('Clique com botão direito na imagem e salve!', 'info');
+    });
 }
 
 // FIX: função única (duplicata removida)
@@ -1820,27 +1830,31 @@ function filtrarEst() {
 }
 
 function novoEstoque() {
-  editingId = null;
-  document.getElementById('em-title').textContent = '📦 Novo Item';
-  ['em-nome', 'em-qtd', 'em-custo', 'em-val', 'em-min'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('em-cat').value = 'Alimento';
-  document.getElementById('em-uni').value = 'un';
-  openModal('estoque-modal');
+  solicitarSenha(() => {
+    editingId = null;
+    document.getElementById('em-title').textContent = '📦 Novo Item';
+    ['em-nome', 'em-qtd', 'em-custo', 'em-val', 'em-min'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('em-cat').value = 'Alimento';
+    document.getElementById('em-uni').value = 'un';
+    openModal('estoque-modal');
+  });
 }
 
 function editarEstoque(id) {
-  const e = allEstoque.find(x => x.id === id);
-  if (!e) return;
-  editingId = id;
-  document.getElementById('em-title').textContent = `✏️ Editar: ${e.nome}`;
-  document.getElementById('em-nome').value  = e.nome;
-  document.getElementById('em-cat').value   = e.categoria;
-  document.getElementById('em-qtd').value   = e.quantidade;
-  document.getElementById('em-uni').value   = e.unidade;
-  document.getElementById('em-custo').value = e.custo || '';
-  document.getElementById('em-val').value   = e.validade || '';
-  document.getElementById('em-min').value   = e.minimo;
-  openModal('estoque-modal');
+  solicitarSenha(() => {
+    const e = allEstoque.find(x => x.id === id);
+    if (!e) return;
+    editingId = id;
+    document.getElementById('em-title').textContent = `✏️ Editar: ${e.nome}`;
+    document.getElementById('em-nome').value  = e.nome;
+    document.getElementById('em-cat').value   = e.categoria;
+    document.getElementById('em-qtd').value   = e.quantidade;
+    document.getElementById('em-uni').value   = e.unidade;
+    document.getElementById('em-custo').value = e.custo || '';
+    document.getElementById('em-val').value   = e.validade || '';
+    document.getElementById('em-min').value   = e.minimo;
+    openModal('estoque-modal');
+  });
 }
 
 async function salvarEstoque() {
