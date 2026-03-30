@@ -27,6 +27,7 @@
   --border: #2a2a2a;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; overflow: hidden; }
 
 /* ============================================================
@@ -343,6 +344,86 @@ tr.row-warn     td { background: rgba(245,166,35,.06) !important; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 .fade-in { animation: fadeUp .25s ease both; }
 .periodo-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+
+/* ── FILTRO DE DATA/HORA — Dashboard e Pedidos ── */
+.dash-filter-bar {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.dash-filter-bar .filter-row {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px;
+}
+.dash-filter-bar .filter-row:last-child { margin-bottom: 0; }
+.dash-filter-label {
+  font-size: 10px; font-weight: 800; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 1px;
+  min-width: 60px; flex-shrink: 0;
+}
+.date-time-group {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px 6px;
+  transition: border-color .2s;
+}
+.date-time-group:focus-within { border-color: var(--gold); }
+.date-time-group input[type="date"],
+.date-time-group input[type="time"] {
+  background: transparent; border: none; color: var(--text);
+  font-family: 'Nunito'; font-size: 13px; outline: none;
+  padding: 6px 4px;
+}
+.date-time-group input[type="date"]::-webkit-calendar-picker-indicator,
+.date-time-group input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6); cursor: pointer;
+}
+.date-time-sep {
+  color: var(--text2); font-size: 12px; font-weight: 700; padding: 0 4px;
+}
+.todos-btn {
+  background: var(--gold); color: #000;
+  border: none; border-radius: 20px;
+  padding: 7px 18px; font-family: 'Nunito';
+  font-size: 13px; font-weight: 800; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.todos-btn:hover { background: var(--gold2); transform: translateY(-1px); }
+.periodo-active-label {
+  font-size: 11px; color: var(--gold); font-weight: 700;
+  background: rgba(245,166,35,.1); padding: 4px 12px;
+  border-radius: 20px; border: 1px solid rgba(245,166,35,.3);
+  white-space: nowrap;
+}
+
+/* ── SCROLLBAR ESTILO WHATSAPP — Chat Gerente ── */
+.wpp-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245,166,35,.5) transparent;
+  height: 500px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.wpp-scroll:hover {
+  scrollbar-color: var(--gold) rgba(245,166,35,.08);
+}
+.wpp-scroll::-webkit-scrollbar { width: 6px; }
+.wpp-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+.wpp-scroll::-webkit-scrollbar-thumb {
+  background: rgba(245,166,35,.4);
+  border-radius: 10px;
+  transition: background .2s;
+}
+.wpp-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+.wpp-scroll::-webkit-scrollbar-thumb:active {
+  background: var(--gold2);
+}
 @media(max-width:1300px) { #dash-kpi { grid-template-columns: repeat(3,1fr) !important; } }
 
 /* ── AGENTE IA ──────────────────────────────────────── */
@@ -465,8 +546,8 @@ select.ai-input { cursor: pointer; }
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 0;
-  height: calc(100vh - 190px);
-  min-height: 540px;
+  max-height: 100%;
+  min-height: 0;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -547,14 +628,124 @@ select.ai-input { cursor: pointer; }
 /* ── Spinners ── */
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
 
-/* ── Scrollbar ── */
+/* ── Scrollbar global ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
+/* ── Scrollbar visível — Contatos do Chat Gerente ── */
+#wpp-admin-contacts {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245,166,35,.6) rgba(245,166,35,.08);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+#wpp-admin-contacts::-webkit-scrollbar { width: 6px; display: block; }
+#wpp-admin-contacts::-webkit-scrollbar-track { background: rgba(245,166,35,.06); border-radius: 10px; }
+#wpp-admin-contacts::-webkit-scrollbar-thumb { background: rgba(245,166,35,.5); border-radius: 10px; min-height: 36px; }
+#wpp-admin-contacts::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+#wpp-admin-contacts::-webkit-scrollbar-thumb:active { background: var(--gold2); }
+
+/* ── Scrollbar dourada — Mensagens do Chat Gerente ── */
+#wpp-admin-msgs {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245,166,35,.6) rgba(245,166,35,.06);
+  overflow-y: scroll;
+  overflow-x: hidden;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+#wpp-admin-msgs::-webkit-scrollbar { width: 6px; display: block; }
+#wpp-admin-msgs::-webkit-scrollbar-track { background: rgba(245,166,35,.06); border-radius: 10px; }
+#wpp-admin-msgs::-webkit-scrollbar-thumb { background: rgba(245,166,35,.5); border-radius: 10px; min-height: 36px; }
+#wpp-admin-msgs::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+#wpp-admin-msgs::-webkit-scrollbar-thumb:active { background: var(--gold2); }
+
+/* ── Scrollbar discreta — textarea do input ── */
+#wpp-admin-inp::-webkit-scrollbar { width: 4px !important; }
+#wpp-admin-inp::-webkit-scrollbar-track { background: transparent !important; }
+#wpp-admin-inp::-webkit-scrollbar-thumb { background: var(--bg4) !important; border-radius: 3px !important; }
+
 @media(max-width:1100px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
 @media(max-width:800px)  { .kanban { grid-template-columns: repeat(2,1fr); } .charts-grid { grid-template-columns: 1fr; } }
+
+
+/* ── SCROLL-TO-BOTTOM CHAT GERENTE ─────────────────────────── */
+/* position já definida acima com !important */
+#scroll-btn-admin {
+  position: sticky;
+  bottom: 14px;
+  align-self: flex-end;
+  margin-right: 6px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #000;
+  border: none;
+  cursor: pointer;
+  font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .15s;
+  z-index: 20;
+  flex-shrink: 0;
+}
+#scroll-btn-admin.visivel { opacity: 1; pointer-events: all; }
+#scroll-btn-admin:hover   { background: var(--gold2); transform: scale(1.12); }
+#scroll-btn-admin .sb-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: var(--red); color: #fff;
+  font-size: 9px; font-weight: 900;
+  padding: 1px 4px; border-radius: 8px;
+  display: none;
+}
+#scroll-btn-admin .sb-badge.show { display: block; }
+
+/* ── AUMENTO GLOBAL DE FONTE ───────────────────────────────── */
+.nav-item           { font-size: 15px !important; }
+.nav-section        { font-size: 11px !important; }
+.nav-badge          { font-size: 11px !important; }
+.user-name          { font-size: 13px !important; }
+.user-email         { font-size: 11px !important; }
+.empresa-chip .ec-name  { font-size: 14px !important; }
+.empresa-chip .ec-slug  { font-size: 11px !important; }
+.empresa-chip .ec-label { font-size: 10px !important; }
+.logo-text          { font-size: 22px !important; }
+.btn                { font-size: 14px !important; }
+.btn-sm             { font-size: 13px !important; }
+.kpi-label          { font-size: 12px !important; }
+.kpi-value          { font-size: 34px !important; }
+.kpi-sub            { font-size: 13px !important; }
+th                  { font-size: 12px !important; }
+td                  { font-size: 14px !important; }
+.badge              { font-size: 12px !important; }
+.input-field        { font-size: 14px !important; }
+.form-group label   { font-size: 13px !important; }
+.tab                { font-size: 14px !important; }
+.kanban-header      { font-size: 14px !important; }
+.pedido-card .cli   { font-size: 14px !important; }
+.pedido-card .pit   { font-size: 12px !important; }
+.pedido-card .pval  { font-size: 15px !important; }
+.chart-title        { font-size: 15px !important; }
+.toast              { font-size: 14px !important; }
+.ai-card-title      { font-size: 14px !important; }
+.ai-field label     { font-size: 12px !important; }
+.ai-input           { font-size: 14px !important; }
+.toggle-label       { font-size: 14px !important; }
+.ai-status          { font-size: 12px !important; }
+.ai-metric-lbl      { font-size: 11px !important; }
+.chat-header-title  { font-size: 15px !important; }
+.chat-bubble        { font-size: 14px !important; }
+.table-title        { font-size: 16px !important; }
+.alert-bar          { font-size: 14px !important; }
+.login-input        { font-size: 15px !important; }
+.login-btn          { font-size: 16px !important; }
+.modal-title        { font-size: 24px !important; }
 </style>
 </head>
 <body>
@@ -855,6 +1046,7 @@ let n8nUrl      = '';
 let periodoAtivo = { ini: null, fim: null };
 
 // ── AGENTE IA ─────────────────────────────────────────────────
+
 let agenteCfg = {
   ativo:        false,
   nome:         'Assistente',
@@ -862,7 +1054,8 @@ let agenteCfg = {
   apiKey:       '',
   prompt:       '',
   saudacao:     '',
-  limite_hist:  10
+  limite_hist:  10,
+  modelo:       'claude-haiku-4-5-20251001'
 };
 let agenteHist   = []; // histórico da conversa de teste
 let agenteCtx    = ''; // contexto do sistema gerado dinamicamente
@@ -1010,6 +1203,7 @@ async function fazerLogin() {
     sessionStorage.setItem('burgerops_client_url', CLIENT_URL);
     sessionStorage.setItem('burgerops_client_key', CLIENT_KEY);
     sessionStorage.setItem('burgerops_n8n',        n8nUrl);
+    if (n8nUrl) localStorage.setItem(n8nCfgKey(), n8nUrl); // salvar por empresa
 
     loginOk = true;
     txt.textContent = 'Entrando...';
@@ -1171,6 +1365,15 @@ async function switchCompany(companyId) {
   // Reconectar realtime na nova empresa
   if (ws) { try { ws.close(); } catch(e){} ws = null; }
   connectRealtime();
+  // Recarregar configurações para a nova empresa
+  carregarCfgAgente();
+  carregarCfgWpp();
+  n8nUrl = localStorage.getItem(n8nCfgKey()) || '';
+  sessionStorage.setItem('burgerops_n8n', n8nUrl);
+  // Resetar Chat WhatsApp do gerente — cada empresa exige nova autenticação
+  wppAdminDesbloqueado = false;
+  numeroAtivo = null;
+  contatoAtivo = {};
   await showPage('pedidos');
   toast(`✅ Gerenciando: ${company.nome_empresa}`, 'success');
 }
@@ -1226,7 +1429,7 @@ async function processarMensagemWebhook(from, msg) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: agenteCfg.modelo || 'claude-haiku-4-5-20251001',
         max_tokens: 600,
         system: systemPrompt,
         messages: [{ role: 'user', content: msg }]
@@ -1317,7 +1520,7 @@ function restaurarSessao() {
     SESSION    = JSON.parse(saved);
     CLIENT_URL = sessionStorage.getItem('burgerops_client_url') || '';
     CLIENT_KEY = sessionStorage.getItem('burgerops_client_key') || '';
-    n8nUrl     = sessionStorage.getItem('burgerops_n8n')        || '';
+    n8nUrl     = localStorage.getItem(n8nCfgKey()) || sessionStorage.getItem('burgerops_n8n') || '';
     if (!CLIENT_URL || !CLIENT_KEY) return false;
     return true;
   } catch (e) { return false; }
@@ -2507,18 +2710,128 @@ async function relatorioN8n() {
 }
 
 // ============================================================
-//  DASHBOARD — 7 gráficos + 5 KPIs
+//  DASHBOARD — 7 gráficos + 5 KPIs + filtro data/hora
 // ============================================================
+
+// Estado global do filtro do dashboard
+let dashFiltro = { ini: null, fim: null, label: 'Todos' };
+
+function setDashPeriodo(label, btn) {
+  document.querySelectorAll('.dash-periodo-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let ini = null, fim = null;
+  if (label === 'Hoje') {
+    ini = today; fim = new Date(today.getTime() + 86399999);
+  } else if (label === 'Ontem') {
+    ini = new Date(today.getTime() - 86400000);
+    fim = new Date(today.getTime() - 1);
+  } else if (label === 'Esta semana') {
+    const dow = today.getDay();
+    ini = new Date(today.getTime() - dow * 86400000);
+    fim = new Date(ini.getTime() + 7 * 86400000 - 1);
+  } else if (label === 'Semana passada') {
+    const dow = today.getDay();
+    fim = new Date(today.getTime() - (dow + 1) * 86400000 + 86399999);
+    ini = new Date(fim.getTime() - 6 * 86400000);
+  } else if (label === 'Este mês') {
+    ini = new Date(now.getFullYear(), now.getMonth(), 1);
+    fim = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  } else if (label === 'Mês passado') {
+    ini = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    fim = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+  } else {
+    ini = null; fim = null;
+  }
+  dashFiltro = { ini, fim, label };
+  atualizarLabelDashFiltro();
+  renderDashboardData();
+}
+
+function setDashPeriodoCustom() {
+  const dIni  = document.getElementById('dash-dt-ini')?.value;
+  const hIni  = document.getElementById('dash-hr-ini')?.value || '00:00';
+  const dFim  = document.getElementById('dash-dt-fim')?.value;
+  const hFim  = document.getElementById('dash-hr-fim')?.value || '23:59';
+  if (!dIni && !dFim) return;
+  document.querySelectorAll('.dash-periodo-btn').forEach(b => b.classList.remove('active'));
+  dashFiltro = {
+    ini: dIni ? new Date(`${dIni}T${hIni}:00`) : null,
+    fim: dFim ? new Date(`${dFim}T${hFim}:59`) : null,
+    label: `${dIni||'…'} ${hIni} → ${dFim||'…'} ${hFim}`
+  };
+  atualizarLabelDashFiltro();
+  renderDashboardData();
+}
+
+function atualizarLabelDashFiltro() {
+  const el = document.getElementById('dash-periodo-label');
+  if (el) el.textContent = dashFiltro.label;
+}
+
 async function renderDashboard() {
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-gold btn-sm" onclick="exportCSV()">📄 Exportar CSV</button>`;
   const c = document.getElementById('content');
-  c.innerHTML = `<div style="text-align:center;padding:40px"><div class="spinner"></div></div>`;
+  // Resetar filtro ao entrar no dashboard
+  dashFiltro = { ini: null, fim: null, label: 'Todos' };
+
+  c.innerHTML = `
+    <!-- FILTRO DE DATA / HORA -->
+    <div class="dash-filter-bar">
+      <div class="filter-row">
+        <span class="dash-filter-label">📅 Período</span>
+        ${['Hoje','Ontem','Esta semana','Semana passada','Este mês','Mês passado'].map(l =>
+          `<button class="btn btn-outline btn-sm dash-periodo-btn" onclick="setDashPeriodo('${l}',this)">${l}</button>`
+        ).join('')}
+        <button class="todos-btn dash-periodo-btn active" onclick="setDashPeriodo('Todos',this)">Todos</button>
+        <span class="periodo-active-label" id="dash-periodo-label">Todos</span>
+      </div>
+      <div class="filter-row">
+        <span class="dash-filter-label">🕐 Horário</span>
+        <div class="date-time-group">
+          <input type="date" id="dash-dt-ini" onchange="setDashPeriodoCustom()">
+          <input type="time" id="dash-hr-ini" value="00:00" onchange="setDashPeriodoCustom()">
+        </div>
+        <span class="date-time-sep">até</span>
+        <div class="date-time-group">
+          <input type="date" id="dash-dt-fim" onchange="setDashPeriodoCustom()">
+          <input type="time" id="dash-hr-fim" value="23:59" onchange="setDashPeriodoCustom()">
+        </div>
+      </div>
+    </div>
+
+    <div id="dash-kpi-row" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px"></div>
+    <div id="dash-charts"></div>
+    <div style="text-align:center;padding:40px" id="dash-spinner"><div class="spinner"></div></div>`;
+
+  await renderDashboardData();
+}
+
+async function renderDashboardData() {
+  const spinner = document.getElementById('dash-spinner');
+  if (spinner) spinner.style.display = 'block';
+  const kpiRow   = document.getElementById('dash-kpi-row');
+  const chartsEl = document.getElementById('dash-charts');
+  if (kpiRow)   kpiRow.innerHTML = '';
+  if (chartsEl) chartsEl.innerHTML = '';
+
   try {
-    const [peds, cardapio, estoque] = await Promise.all([
+    const [allPedsRaw, cardapio, estoque] = await Promise.all([
       sb.select('pedidos', `slug=eq.${getSlug()}&order=criado_em.desc`),
       sb.select('cardapio', `slug=eq.${getSlug()}&order=categoria,nome`),
       sb.select('estoque', `slug=eq.${getSlug()}&order=nome`)
     ]);
+
+    // Aplicar filtro de data/hora
+    const peds = allPedsRaw.filter(p => {
+      const t = new Date(p.criado_em);
+      if (dashFiltro.ini && t < dashFiltro.ini) return false;
+      if (dashFiltro.fim && t > dashFiltro.fim) return false;
+      return true;
+    });
+
+    if (spinner) spinner.style.display = 'none';
 
     const conc    = peds.filter(p => p.status === 'concluido');
     const canc    = peds.filter(p => p.status === 'cancelado');
@@ -2536,7 +2849,7 @@ async function renderDashboard() {
     const hL = Object.keys(horas).sort((a,b)=>+a-+b).map(h => h+'h');
     const hD = Object.keys(horas).sort((a,b)=>+a-+b).map(h => horas[h]);
 
-    // Últimos 14 dias
+    // Últimos 14 dias (ou dias do período filtrado)
     const diasMap = {};
     const hoje = new Date(); hoje.setHours(23,59,59,999);
     for (let i=13; i>=0; i--) {
@@ -2569,32 +2882,27 @@ async function renderDashboard() {
     const entrCnt = { 'Delivery':0, 'Retirada no Balcão':0, 'Mesa (Local)':0 };
     peds.forEach(p => { if(p.tipo_entrega && p.tipo_entrega in entrCnt) entrCnt[p.tipo_entrega]++; });
 
-    // Estoque top 10 (quantidade vs mínimo)
+    // Estoque top 10
     const topEst = [...estoque].sort((a,b)=>b.quantidade-a.quantidade).slice(0,10);
 
-    c.innerHTML = `
-      <!-- 5 KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">
-        <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">Receita Total</div><div class="kpi-value" style="color:var(--green)">R$ ${rec.toFixed(2)}</div><div class="kpi-sub">${conc.length} concluídos</div></div>
-        <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-label">Total Pedidos</div><div class="kpi-value" style="color:var(--gold)">${peds.length}</div><div class="kpi-sub">${canc.length} cancelados</div></div>
-        <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-label">Ticket Médio</div><div class="kpi-value" style="color:var(--blue)">R$ ${tick.toFixed(2)}</div></div>
-        <div class="kpi-card"><div class="kpi-icon">🎯</div><div class="kpi-label">Taxa Conversão</div><div class="kpi-value" style="color:var(--cyan)">${conv}%</div><div class="kpi-sub">pedidos→concluído</div></div>
-        <div class="kpi-card"><div class="kpi-icon">🏢</div><div class="kpi-label">Empresa</div><div class="kpi-value" style="color:var(--gold2);font-size:16px;line-height:1.3;margin-top:4px">${SESSION?.nome_empresa||'—'}</div><div class="kpi-sub">Plano: ${SESSION?.plano||'—'}</div></div>
-      </div>
+    // KPIs
+    if (kpiRow) kpiRow.innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">Receita Total</div><div class="kpi-value" style="color:var(--green)">R$ ${rec.toFixed(2)}</div><div class="kpi-sub">${conc.length} concluídos</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-label">Total Pedidos</div><div class="kpi-value" style="color:var(--gold)">${peds.length}</div><div class="kpi-sub">${canc.length} cancelados</div></div>
+      <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-label">Ticket Médio</div><div class="kpi-value" style="color:var(--blue)">R$ ${tick.toFixed(2)}</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🎯</div><div class="kpi-label">Taxa Conversão</div><div class="kpi-value" style="color:var(--cyan)">${conv}%</div><div class="kpi-sub">pedidos→concluído</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🏢</div><div class="kpi-label">Empresa</div><div class="kpi-value" style="color:var(--gold2);font-size:16px;line-height:1.3;margin-top:4px">${SESSION?.nome_empresa||'—'}</div><div class="kpi-sub">Plano: ${SESSION?.plano||'—'}</div></div>`;
 
-      <!-- Row 1: Faturamento horário + 14 dias -->
+    // Charts
+    if (chartsEl) chartsEl.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="chart-card"><div class="chart-title">📈 Faturamento por Horário</div><canvas id="ch-fat" height="160"></canvas></div>
         <div class="chart-card"><div class="chart-title">📅 Pedidos — Últimos 14 dias</div><canvas id="ch-dias" height="160"></canvas></div>
       </div>
-
-      <!-- Row 2: Top itens (largo) + Pagamentos (estreito) -->
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
         <div class="chart-card"><div class="chart-title">🔥 Itens Mais Pedidos (Top 8)</div><canvas id="ch-itens" height="200"></canvas></div>
         <div class="chart-card"><div class="chart-title">💳 Formas de Pagamento</div><canvas id="ch-pgto" height="200"></canvas></div>
       </div>
-
-      <!-- Row 3: Categorias + Entrega + Estoque -->
       <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:16px;margin-bottom:16px">
         <div class="chart-card"><div class="chart-title">🍔 Itens por Categoria</div><canvas id="ch-cat" height="200"></canvas></div>
         <div class="chart-card"><div class="chart-title">🛵 Tipo de Entrega</div><canvas id="ch-entr" height="200"></canvas></div>
@@ -2606,35 +2914,24 @@ async function renderDashboard() {
       const gridColor = '#2a2a2a', tickColor = '#888';
       const scales1 = { x:{ticks:{color:tickColor},grid:{color:gridColor}}, y:{ticks:{color:tickColor},grid:{color:gridColor}} };
       const legendR = { position:'right', labels:{color:tickColor,boxWidth:12,font:{size:11}} };
-      const legendB = { labels:{color:tickColor} };
 
-      // Faturamento horário
       C('ch-fat',{type:'bar',data:{labels:hL.length?hL:['18h','19h','20h','21h'],datasets:[{label:'R$',data:hD.length?hD:[180,320,450,280],backgroundColor:'rgba(245,166,35,.7)',borderColor:'#f5a623',borderWidth:1,borderRadius:4}]},options:{responsive:true,plugins:{legend:{labels:{color:tickColor}}},scales:scales1}});
-
-      // 14 dias
       C('ch-dias',{type:'line',data:{labels:diasL,datasets:[{label:'Pedidos',data:diasD,borderColor:'#3a86ff',backgroundColor:'rgba(58,134,255,.1)',tension:.3,fill:true,pointRadius:3,pointBackgroundColor:'#3a86ff'}]},options:{responsive:true,plugins:{legend:{labels:{color:tickColor}}},scales:scales1}});
-
-      // Top itens (barra horizontal)
       C('ch-itens',{type:'bar',data:{labels:topItens.length?topItens.map(x=>x[0]):['Sem dados'],datasets:[{label:'Qtd vendida',data:topItens.length?topItens.map(x=>x[1]):[0],backgroundColor:'rgba(0,180,216,.7)',borderColor:'#00b4d8',borderWidth:1,borderRadius:4}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{labels:{color:tickColor}}},scales:{x:{ticks:{color:tickColor},grid:{color:gridColor}},y:{ticks:{color:tickColor,font:{size:11}},grid:{color:gridColor}}}}});
-
-      // Pagamentos
       const pgKeys = Object.keys(pgtos).length ? Object.keys(pgtos) : ['PIX','Dinheiro'];
       const pgVals = Object.values(pgtos).length ? Object.values(pgtos) : [4,3];
       C('ch-pgto',{type:'doughnut',data:{labels:pgKeys,datasets:[{data:pgVals,backgroundColor:['#f5a623','#e63946','#2dc653','#3a86ff','#00b4d8'],borderWidth:0}]},options:{responsive:true,plugins:{legend:legendR}}});
-
-      // Categorias cardápio
       const catK = Object.keys(catCnt).length ? Object.keys(catCnt) : ['Sem dados'];
       const catV = Object.values(catCnt).length ? Object.values(catCnt) : [1];
       C('ch-cat',{type:'doughnut',data:{labels:catK,datasets:[{data:catV,backgroundColor:['#f5a623','#3a86ff','#2dc653','#e63946','#00b4d8','#7209b7'],borderWidth:0}]},options:{responsive:true,plugins:{legend:legendR}}});
-
-      // Tipo entrega
       C('ch-entr',{type:'doughnut',data:{labels:['Delivery','Balcão','Mesa'],datasets:[{data:[entrCnt['Delivery'],entrCnt['Retirada no Balcão'],entrCnt['Mesa (Local)']],backgroundColor:['#3a86ff','#f5a623','#2dc653'],borderWidth:0}]},options:{responsive:true,plugins:{legend:legendR}}});
-
-      // Estoque qtd vs mínimo
       C('ch-est',{type:'bar',data:{labels:topEst.map(e=>e.nome.substring(0,14)),datasets:[{label:'Quantidade',data:topEst.map(e=>e.quantidade),backgroundColor:'rgba(45,198,83,.7)',borderRadius:3},{label:'Mínimo',data:topEst.map(e=>e.minimo||0),backgroundColor:'rgba(230,57,70,.5)',borderRadius:3}]},options:{responsive:true,plugins:{legend:{labels:{color:tickColor}}},scales:scales1}});
-
     }, 120);
-  } catch (e) { c.innerHTML = `<p style="color:var(--red);padding:24px">Erro: ${e.message}</p>`; }
+  } catch (e) {
+    if (spinner) spinner.style.display = 'none';
+    const chartsEl = document.getElementById('dash-charts');
+    if (chartsEl) chartsEl.innerHTML = `<p style="color:var(--red);padding:24px">Erro: ${e.message}</p>`;
+  }
 }
 
 async function exportCSV() {
@@ -2776,7 +3073,8 @@ function renderConfig() {
 
 function salvarN8n() {
   n8nUrl = document.getElementById('cfg-n8n').value.trim();
-  sessionStorage.setItem('burgerops_n8n', n8nUrl);
+  localStorage.setItem(n8nCfgKey(), n8nUrl);
+  sessionStorage.setItem('burgerops_n8n', n8nUrl); // manter compatibilidade de sessão
   toast('URL n8n salva!', 'success');
 }
 
@@ -2898,8 +3196,25 @@ function imprimirComanda() {
 //  AGENTE IA
 // ============================================================
 
+function agenteCfgKey() {
+  const slug = SESSION?.slug || 'default';
+  return `burgerops_agente_${slug}`;
+}
+
+function wppCfgKey() {
+  const slug = SESSION?.slug || 'default';
+  return `burgerops_wpp_${slug}`;
+}
+
+function n8nCfgKey() {
+  const slug = SESSION?.slug || 'default';
+  return `burgerops_n8n_${slug}`;
+}
+
 function carregarCfgAgente() {
-  const s = localStorage.getItem('burgerops_agente');
+  // Reset para defaults antes de carregar
+  agenteCfg = { ativo: false, nome: 'Assistente', tom: 'amigavel', apiKey: '', modelo: 'claude-haiku-4-5-20251001', prompt: '', saudacao: '', limite_hist: 10, googleTtsKey: '', ttsVoice: 'pt-BR-Neural2-C', ttsAtivo: false };
+  const s = localStorage.getItem(agenteCfgKey());
   if (s) { try { Object.assign(agenteCfg, JSON.parse(s)); } catch(e){} }
 }
 
@@ -2908,6 +3223,7 @@ function salvarCfgAgente() {
   agenteCfg.nome         = document.getElementById('ag-nome').value.trim() || 'Assistente';
   agenteCfg.tom          = document.getElementById('ag-tom').value;
   agenteCfg.apiKey       = document.getElementById('ag-key').value.trim();
+  agenteCfg.modelo       = document.getElementById('ag-modelo').value;
   agenteCfg.prompt       = document.getElementById('ag-prompt').value.trim();
   agenteCfg.saudacao     = document.getElementById('ag-saudacao').value.trim();
   agenteCfg.limite_hist  = parseInt(document.getElementById('ag-hist').value) || 10;
@@ -2918,7 +3234,7 @@ function salvarCfgAgente() {
   if (ttsKeyEl)   agenteCfg.googleTtsKey = ttsKeyEl.value.trim();
   if (ttsVoiceEl) agenteCfg.ttsVoice    = ttsVoiceEl.value;
   if (ttsAtivoEl) agenteCfg.ttsAtivo    = ttsAtivoEl.checked;
-  localStorage.setItem('burgerops_agente', JSON.stringify(agenteCfg));
+  localStorage.setItem(agenteCfgKey(), JSON.stringify(agenteCfg));
   // Atualizar badge sidebar
   const b = document.getElementById('badge-ia');
   if (b) { b.style.display = agenteCfg.ativo ? 'inline-block' : 'none'; }
@@ -3033,7 +3349,7 @@ async function enviarMensagemAgente(msgUsuario) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: agenteCfg.modelo || 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         system: systemPrompt,
         messages: hist
@@ -3213,6 +3529,17 @@ function renderAgente() {
           <div class="ai-field">
             <label>API Key</label>
             <input class="ai-input" id="ag-key" type="password" value="${agenteCfg.apiKey}" placeholder="sk-ant-api03-...">
+          </div>
+          <div class="ai-field">
+            <label>Modelo de Linguagem</label>
+            <select class="ai-input" id="ag-modelo">
+              <option value="claude-haiku-4-5-20251001"   ${(agenteCfg.modelo||'claude-haiku-4-5-20251001')==='claude-haiku-4-5-20251001'?'selected':''}>⚡ Claude Haiku 4.5 — Rápido e econômico</option>
+              <option value="claude-sonnet-4-6"            ${agenteCfg.modelo==='claude-sonnet-4-6'?'selected':''}>🧠 Claude Sonnet 4.6 — Equilibrado</option>
+              <option value="claude-opus-4-6"              ${agenteCfg.modelo==='claude-opus-4-6'?'selected':''}>🚀 Claude Opus 4.6 — Máxima inteligência</option>
+            </select>
+            <div style="font-size:11px;color:var(--text2);margin-top:5px">
+              Cada empresa pode usar um modelo diferente. Haiku é ideal para atendimento rápido.
+            </div>
           </div>
 
         <div class="ai-card" style="margin-top:14px">
@@ -3506,7 +3833,7 @@ function renderAgente() {
             </div>
 
             <!-- Mensagens -->
-            <div id="wpp-admin-msgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;background:var(--bg);background-image:radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px);background-size:26px 26px;">
+           <div id="wpp-admin-msgs" class="wpp-scroll" style="flex: 1; height: 100%; overflow-y: auto; min-height: 0; padding: 14px; display: flex; flex-direction: column; background: var(--bg); background-image: radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px); background-size: 26px 26px;">
               <div style="text-align:center;color:var(--text2);font-size:13px;margin-top:60px;">
                 <div style="font-size:48px;margin-bottom:12px">📲</div>
                 <div style="font-weight:700">Selecione uma conversa para ver o histórico</div>
@@ -3607,7 +3934,7 @@ function renderAgente() {
         </div>
 
         <!-- Lista de conversas -->
-        <div id="wpp-conv-lista" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
+        <div id="wpp-conv-lista" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;" class="wpp-scroll">
           <div style="text-align:center;padding:24px;color:var(--text2);font-size:13px;">⏳ Carregando conversas...</div>
         </div>
       </div>
@@ -3625,7 +3952,7 @@ function renderAgente() {
         </div>
 
         <!-- Mensagens -->
-        <div id="wpp-chat-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--bg);background-image:radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px);background-size:28px 28px;">
+        <div id="wpp-chat-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--bg);background-image:radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px);background-size:28px 28px;" class="wpp-scroll">
           <div style="text-align:center;color:var(--text2);font-size:13px;margin-top:40px;">
             <div style="font-size:40px;margin-bottom:10px;">📲</div>
             Selecione uma conversa para ver o histórico
@@ -4058,7 +4385,9 @@ function limparChatHumano() {
 
 // ── WPP CONFIG ───────────────────────────────────────────────
 function carregarCfgWpp() {
-  const s = localStorage.getItem('burgerops_wpp');
+  // Reset para defaults antes de carregar (evita contaminação entre empresas)
+  wppCfg = { provedor: 'evolution', url: '', token: '', instancia: '', ativo: false };
+  const s = localStorage.getItem(wppCfgKey());
   if (s) { try { Object.assign(wppCfg, JSON.parse(s)); } catch(e){} }
 }
 
@@ -4068,7 +4397,7 @@ function salvarCfgWpp() {
   wppCfg.token      = document.getElementById('wpp-token')?.value.trim() || '';
   wppCfg.instancia  = document.getElementById('wpp-inst')?.value.trim() || '';
   wppCfg.ativo      = document.getElementById('wpp-ativo')?.checked || false;
-  localStorage.setItem('burgerops_wpp', JSON.stringify(wppCfg));
+  localStorage.setItem(wppCfgKey(), JSON.stringify(wppCfg));
   toast('✅ Config WhatsApp salva!', 'success');
 }
 
@@ -4417,6 +4746,7 @@ async function carregarConversasAdmin() {
   // Sincronizar mapa IA
   contatos.forEach(c => { if (!(c.numero in wppContatoIaMap)) wppContatoIaMap[c.numero] = c.iaAtiva; });
   renderListaContatosAdmin(contatos);
+  setTimeout(initScrollAdmin, 100);
 }
 
 function renderListaContatosAdmin(contatos) {
@@ -4558,7 +4888,13 @@ function renderMensagensAdmin(numero) {
       </div>
     </div>`;
   }).join('');
-  el.scrollTop = el.scrollHeight;
+  // Só rolar automaticamente se já estava no fim; senão mostra badge
+  const distFim = el.scrollHeight - el.scrollTop - el.clientHeight;
+  if (distFim < 80) {
+    el.scrollTop = el.scrollHeight;
+  } else {
+    adminScrollBadge();
+  }
 }
 
 async function enviarMsgAdmin() {
@@ -4699,15 +5035,17 @@ function renderWppAdminPanel() {
     <button class="btn btn-outline btn-sm" onclick="carregarConversasAdmin()">🔄 Atualizar</button>`;
 
   const c = document.getElementById('content');
-  c.style.padding = '20px';
-  c.style.overflow = 'auto';
+  c.style.padding = '0';
+  c.style.overflow = 'hidden';
+  c.style.display = 'flex';
+  c.style.flexDirection = 'column';
   c.innerHTML = `
-  <div style="font-family:'Bebas Neue';font-size:22px;color:var(--gold);letter-spacing:1px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+  <div style="font-family:'Bebas Neue';font-size:22px;color:var(--gold);letter-spacing:1px;padding:20px 20px 0;flex-shrink:0;display:flex;align-items:center;gap:10px;">
     💬 Chat WhatsApp — Atendimento do Gerente
   </div>
 
   <!-- LOCK -->
-  <div id="wpp-admin-page-lock" style="display:${wppAdminDesbloqueado?'none':'flex'};align-items:center;justify-content:center;min-height:340px;">
+  <div id="wpp-admin-page-lock" style="display:${wppAdminDesbloqueado?'none':'flex'};align-items:center;justify-content:center;flex:1;">
     <div class="wpp-lock-box" style="text-align:center;max-width:360px;width:100%">
       <div style="font-size:52px;margin-bottom:10px">🔐</div>
       <div style="font-family:'Bebas Neue';font-size:24px;color:var(--gold);letter-spacing:1px;margin-bottom:6px">Área Restrita</div>
@@ -4733,12 +5071,12 @@ function renderWppAdminPanel() {
   </div>
 
   <!-- CONTEÚDO DESBLOQUEADO -->
-  <div id="wpp-admin-page-content" style="display:${wppAdminDesbloqueado?'block':'none'}">
-    <div class="wpp-admin-layout" style="height:calc(100vh - 180px);min-height:520px;">
+  <div id="wpp-admin-page-content" style="display:${wppAdminDesbloqueado?'flex':'none'};flex:1;height: calc(100vh - 120px),min-height:0;padding:0 20px 20px;">
+    <div class="wpp-admin-layout" style="flex:1;min-height:0;height:100%;">
 
       <!-- COLUNA ESQUERDA: lista de conversas -->
-      <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);border-radius:14px 0 0 14px;border:1px solid var(--border);">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;flex-direction:column;background:var(--bg2);border-radius:14px 0 0 14px;border-right:1px solid var(--border);height:100%;min-height:0;">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
           <div style="font-weight:900;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:6px">💬 Conversas</div>
           <input type="text" placeholder="🔍 Buscar contato..." id="wpp-search-contact"
             style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Nunito';font-size:12px;border-radius:8px;padding:7px 10px;outline:none;margin-bottom:8px;"
@@ -4749,7 +5087,7 @@ function renderWppAdminPanel() {
             <button onclick="filtrarStatusAdmin('ia')"     id="filt-ia"     style="flex:1;padding:5px 3px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:10px;font-weight:900;cursor:pointer;font-family:'Nunito';transition:all .15s">🤖 IA</button>
           </div>
         </div>
-        <div id="wpp-admin-contacts" style="flex:1;overflow-y:auto;">
+        <div id="wpp-admin-contacts" style="flex:1;min-height:0;overflow-y:auto;">
           <div style="text-align:center;padding:32px;color:var(--text2);font-size:13px;">
             <div style="font-size:32px;margin-bottom:8px">📲</div>
             Conecte o WhatsApp<br>para ver as conversas
@@ -4758,7 +5096,7 @@ function renderWppAdminPanel() {
       </div>
 
       <!-- CHAT ABERTO -->
-      <div style="display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--border);border-radius:0 14px 14px 0;overflow:hidden;">
+      <div style="display:flex;flex-direction:column;background:var(--bg);border-radius:0 14px 14px 0;height:100%;min-height:0;overflow:hidden;">
         <div id="wpp-admin-header" style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:12px;min-height:62px;flex-shrink:0;">
           <div style="font-size:28px">💬</div>
           <div style="flex:1">
@@ -4780,12 +5118,15 @@ function renderWppAdminPanel() {
         </div>
 
         <!-- Mensagens -->
-        <div id="wpp-admin-msgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;background:var(--bg);background-image:radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px);background-size:26px 26px;">
+        <div id="wpp-admin-msgs" style="flex:1;min-height:0;overflow-y:scroll;padding:14px;display:block;background:var(--bg);background-image:radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px);background-size:26px 26px;">
           <div style="text-align:center;color:var(--text2);font-size:13px;margin-top:60px;">
             <div style="font-size:48px;margin-bottom:12px">📲</div>
             <div style="font-weight:700">Selecione uma conversa para ver o histórico</div>
             <div style="font-size:12px;margin-top:6px">Mensagens do cliente aparecerão aqui em tempo real</div>
           </div>
+          <button id="scroll-btn-admin" title="Ir para o fim" onclick="scrollAdminToBottom()">
+            ↓<span class="sb-badge" id="scroll-badge-admin"></span>
+          </button>
         </div>
 
         <!-- Input -->
@@ -4817,6 +5158,8 @@ function renderWppAdminPanel() {
   if (wppAdminDesbloqueado) {
     carregarConversasAdmin();
   }
+  // Inicializar botão de scroll
+  setTimeout(initScrollAdmin, 200);
 }
 
 function verificarSenhaWppAdmin() {
@@ -4826,7 +5169,7 @@ function verificarSenhaWppAdmin() {
   if (inp.value === SENHA) {
     wppAdminDesbloqueado = true;
     document.getElementById('wpp-admin-page-lock').style.display = 'none';
-    document.getElementById('wpp-admin-page-content').style.display = 'block';
+    document.getElementById('wpp-admin-page-content').style.display = 'flex';
     carregarConversasAdmin();
     toast('✅ Acesso ao Chat WhatsApp liberado!', 'success');
   } else {
@@ -4922,6 +5265,49 @@ CREATE TABLE IF NOT EXISTS intervencoes_humanas (
   a.download = 'burgerops-migration-v2.sql';
   a.click();
   toast('✅ SQL de migração baixado!', 'success');
+}
+
+
+// ============================================================
+//  SCROLL-TO-BOTTOM — Chat Gerente (wpp-admin-msgs)
+// ============================================================
+function initScrollAdmin() {
+  const box = document.getElementById('wpp-admin-msgs');
+  const btn = document.getElementById('scroll-btn-admin');
+  if (!box || !btn) return;
+
+  box.addEventListener('scroll', () => {
+    const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if (dist > 80) {
+      btn.classList.add('visivel');
+    } else {
+      btn.classList.remove('visivel');
+      const badge = document.getElementById('scroll-badge-admin');
+      if (badge) { badge.classList.remove('show'); badge.textContent = ''; }
+    }
+  });
+}
+
+function scrollAdminToBottom() {
+  const box = document.getElementById('wpp-admin-msgs');
+  if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+  const badge = document.getElementById('scroll-badge-admin');
+  if (badge) { badge.classList.remove('show'); badge.textContent = ''; }
+}
+
+function adminScrollBadge() {
+  const box = document.getElementById('wpp-admin-msgs');
+  const badge = document.getElementById('scroll-badge-admin');
+  const btn   = document.getElementById('scroll-btn-admin');
+  if (!box || !badge || !btn) return;
+  const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
+  if (dist > 80) {
+    btn.classList.add('visivel');
+    const cur = parseInt(badge.textContent) || 0;
+    const next = cur + 1;
+    badge.textContent = next > 9 ? '9+' : next;
+    badge.classList.add('show');
+  }
 }
 
 // ============================================================
