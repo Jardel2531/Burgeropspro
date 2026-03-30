@@ -1052,10 +1052,11 @@ let agenteCfg = {
   nome:         'Assistente',
   tom:          'amigavel',
   apiKey:       '',
+  provedor:     'anthropic',
+  modelo:       'claude-haiku-4-5-20251001',
   prompt:       '',
   saudacao:     '',
-  limite_hist:  10,
-  modelo:       'claude-haiku-4-5-20251001'
+  limite_hist:  10
 };
 let agenteHist   = []; // histórico da conversa de teste
 let agenteCtx    = ''; // contexto do sistema gerado dinamicamente
@@ -1425,18 +1426,8 @@ async function processarMensagemWebhook(from, msg) {
       ctx
     ].join('\n\n');
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: agenteCfg.modelo || 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: msg }]
-      })
-    });
-    const data = await resp.json();
-    return data.content?.find(b => b.type === 'text')?.text || null;
+    const resp = await chamarIA(systemPrompt, [{ role: 'user', content: msg }], 600);
+    return resp || null;
 
   } catch(e) {
     console.error('[Webhook] Erro:', e.message);
@@ -3213,17 +3204,50 @@ function n8nCfgKey() {
 
 function carregarCfgAgente() {
   // Reset para defaults antes de carregar
-  agenteCfg = { ativo: false, nome: 'Assistente', tom: 'amigavel', apiKey: '', modelo: 'claude-haiku-4-5-20251001', prompt: '', saudacao: '', limite_hist: 10, googleTtsKey: '', ttsVoice: 'pt-BR-Neural2-C', ttsAtivo: false };
+  agenteCfg = { ativo: false, nome: 'Assistente', tom: 'amigavel', apiKey: '', provedor: 'anthropic', customUrl: '', modelo: 'claude-haiku-4-5-20251001', prompt: '', saudacao: '', limite_hist: 10, googleTtsKey: '', ttsVoice: 'pt-BR-Neural2-C', ttsAtivo: false };
   const s = localStorage.getItem(agenteCfgKey());
   if (s) { try { Object.assign(agenteCfg, JSON.parse(s)); } catch(e){} }
 }
+
+function atualizarUIProvedor() {
+  const prov = document.getElementById('ag-provedor')?.value || 'anthropic';
+  const customField = document.getElementById('ag-custom-url-field');
+  const hint = document.getElementById('ag-key-hint');
+  const modelHint = document.getElementById('ag-modelo-hint');
+  const modeloEl = document.getElementById('ag-modelo');
+
+  if (customField) customField.style.display = prov === 'custom' ? 'flex' : 'none';
+
+  const hints = {
+    anthropic: 'Obtenha em console.anthropic.com → API Keys',
+    openai:    'Obtenha em platform.openai.com → API Keys',
+    gemini:    'Obtenha em aistudio.google.com → Get API Key',
+    custom:    'Chave da sua API customizada'
+  };
+  if (hint) hint.textContent = hints[prov] || '';
+
+  // Sugerir modelo padrão ao trocar provedor (só se campo estiver vazio ou for de outro provedor)
+  const defaults = {
+    anthropic: 'claude-haiku-4-5-20251001',
+    openai:    'gpt-4o-mini',
+    gemini:    'gemini-1.5-flash',
+    custom:    ''
+  };
+  // Sempre atualiza o modelo ao trocar de provedor
+  if (modeloEl) {
+    modeloEl.value = defaults[prov] || '';
+  }
+}
+
 
 function salvarCfgAgente() {
   agenteCfg.ativo        = document.getElementById('ag-ativo').checked;
   agenteCfg.nome         = document.getElementById('ag-nome').value.trim() || 'Assistente';
   agenteCfg.tom          = document.getElementById('ag-tom').value;
   agenteCfg.apiKey       = document.getElementById('ag-key').value.trim();
-  agenteCfg.modelo       = document.getElementById('ag-modelo').value;
+  agenteCfg.provedor     = document.getElementById('ag-provedor')?.value || 'anthropic';
+  agenteCfg.customUrl    = document.getElementById('ag-custom-url')?.value.trim() || '';
+  agenteCfg.modelo       = document.getElementById('ag-modelo').value.trim() || 'claude-haiku-4-5-20251001';
   agenteCfg.prompt       = document.getElementById('ag-prompt').value.trim();
   agenteCfg.saudacao     = document.getElementById('ag-saudacao').value.trim();
   agenteCfg.limite_hist  = parseInt(document.getElementById('ag-hist').value) || 10;
@@ -3315,9 +3339,95 @@ async function gerarContexto() {
   return ctx;
 }
 
+// ============================================================
+//  ROTEADOR MULTI-PROVEDOR — Anthropic · OpenAI · Gemini · Custom
+// ============================================================
+async function chamarIA(systemPrompt, messages, maxTokens) {
+  // Lê do DOM se disponível (painel aberto), senão usa valor salvo
+  const key      = document.getElementById('ag-key')?.value.trim()     || agenteCfg.apiKey;
+  const modelo   = document.getElementById('ag-modelo')?.value.trim()  || agenteCfg.modelo || 'claude-haiku-4-5-20251001';
+  const provedor = document.getElementById('ag-provedor')?.value       || agenteCfg.provedor || 'anthropic';
+
+  // ---------- ANTHROPIC (Claude) ----------
+  if (provedor === 'anthropic') {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens, system: systemPrompt, messages })
+    });
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'Erro Anthropic'); }
+    const d = await resp.json();
+    return d.content?.find(b => b.type === 'text')?.text || '—';
+  }
+
+  // ---------- OPENAI (GPT) ----------
+  if (provedor === 'openai') {
+    const msgs = [{ role: 'system', content: systemPrompt }, ...messages];
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens, messages: msgs })
+    });
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'Erro OpenAI'); }
+    const d = await resp.json();
+    return d.choices?.[0]?.message?.content || '—';
+  }
+
+  // ---------- GOOGLE GEMINI ----------
+  if (provedor === 'gemini') {
+    // Garante modelo Gemini válido; gemini-1.5-x precisam de sufixo -001
+    let geminiModel = (modelo && modelo.startsWith('gemini-')) ? modelo : 'gemini-2.0-flash';
+    if (geminiModel === 'gemini-1.5-flash') geminiModel = 'gemini-1.5-flash-001';
+    if (geminiModel === 'gemini-1.5-pro')   geminiModel = 'gemini-1.5-pro-001';
+    // Monta contents sem system (system vai no campo separado)
+    const contents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+    const body = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { maxOutputTokens: maxTokens }
+    };
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    );
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'Erro Gemini'); }
+    const d = await resp.json();
+    return d.candidates?.[0]?.content?.parts?.[0]?.text || '—';
+  }
+
+  // ---------- CUSTOM (URL própria compatível com OpenAI) ----------
+  if (provedor === 'custom') {
+    const baseUrl = agenteCfg.customUrl || '';
+    if (!baseUrl) throw new Error('URL do provedor customizado não configurada.');
+    const msgs = [{ role: 'system', content: systemPrompt }, ...messages];
+    const resp = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens, messages: msgs })
+    });
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'Erro Custom'); }
+    const d = await resp.json();
+    return d.choices?.[0]?.message?.content || '—';
+  }
+
+  throw new Error(`Provedor desconhecido: ${provedor}`);
+}
+
 async function enviarMensagemAgente(msgUsuario) {
   if (!msgUsuario.trim()) return;
-  if (!agenteCfg.apiKey) { toast('Configure a API Key do Claude nas configurações do agente!', 'error'); return; }
+  if (!agenteCfg.apiKey) { toast('Configure a API Key nas configurações do agente!', 'error'); return; }
 
   // Adicionar mensagem do usuário
   agenteHist.push({ role: 'user', content: msgUsuario });
@@ -3345,26 +3455,9 @@ async function enviarMensagemAgente(msgUsuario) {
     // Manter histórico limitado
     const hist = agenteHist.slice(-(agenteCfg.limite_hist * 2));
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: agenteCfg.modelo || 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: hist
-      })
-    });
+    const reply = await chamarIA(systemPrompt, hist, 1000);
 
     removeTyping(typingId);
-
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.error?.message || 'Erro na API');
-    }
-
-    const data = await resp.json();
-    const reply = data.content?.find(b => b.type === 'text')?.text || '—';
 
     agenteHist.push({ role: 'assistant', content: reply });
     // Salvar métricas
@@ -3525,20 +3618,46 @@ function renderAgente() {
         </div>
 
         <div class="ai-card">
-          <div class="ai-card-title">🔑 API Claude (Anthropic)</div>
+          <div class="ai-card-title">🔑 Provedor de IA</div>
+
+          <!-- Seletor de provedor -->
+          <div class="ai-field">
+            <label>Provedor</label>
+            <select class="ai-input" id="ag-provedor" onchange="atualizarUIProvedor()">
+              <option value="anthropic" ${(agenteCfg.provedor||'anthropic')==='anthropic'?'selected':''}>🟣 Anthropic (Claude)</option>
+              <option value="openai"    ${agenteCfg.provedor==='openai'?'selected':''}>🟢 OpenAI (GPT)</option>
+              <option value="gemini"    ${agenteCfg.provedor==='gemini'?'selected':''}>🔵 Google Gemini</option>
+              <option value="custom"    ${agenteCfg.provedor==='custom'?'selected':''}>⚙️ Personalizado (compatível OpenAI)</option>
+            </select>
+          </div>
+
+          <!-- URL customizada (só aparece para "custom") -->
+          <div class="ai-field" id="ag-custom-url-field" style="display:${agenteCfg.provedor==='custom'?'flex':'none'};flex-direction:column;gap:6px">
+            <label>URL Base da API</label>
+            <input class="ai-input" id="ag-custom-url" value="${agenteCfg.customUrl||''}" placeholder="https://meu-servidor.com/v1">
+            <div style="font-size:11px;color:var(--text2)">Deve ser compatível com o formato OpenAI (/chat/completions)</div>
+          </div>
+
+          <!-- API Key -->
           <div class="ai-field">
             <label>API Key</label>
-            <input class="ai-input" id="ag-key" type="password" value="${agenteCfg.apiKey}" placeholder="sk-ant-api03-...">
+            <input class="ai-input" id="ag-key" type="password" value="${agenteCfg.apiKey}" placeholder="Cole sua chave aqui...">
+            <div style="font-size:11px;color:var(--text2);margin-top:4px" id="ag-key-hint">
+              ${(agenteCfg.provedor||'anthropic')==='anthropic' ? 'Obtenha em console.anthropic.com → API Keys' :
+                agenteCfg.provedor==='openai' ? 'Obtenha em platform.openai.com → API Keys' :
+                agenteCfg.provedor==='gemini' ? 'Obtenha em aistudio.google.com → Get API Key' :
+                'Chave da sua API customizada'}
+            </div>
           </div>
+
+          <!-- Modelo (texto livre) -->
           <div class="ai-field">
-            <label>Modelo de Linguagem</label>
-            <select class="ai-input" id="ag-modelo">
-              <option value="claude-haiku-4-5-20251001"   ${(agenteCfg.modelo||'claude-haiku-4-5-20251001')==='claude-haiku-4-5-20251001'?'selected':''}>⚡ Claude Haiku 4.5 — Rápido e econômico</option>
-              <option value="claude-sonnet-4-6"            ${agenteCfg.modelo==='claude-sonnet-4-6'?'selected':''}>🧠 Claude Sonnet 4.6 — Equilibrado</option>
-              <option value="claude-opus-4-6"              ${agenteCfg.modelo==='claude-opus-4-6'?'selected':''}>🚀 Claude Opus 4.6 — Máxima inteligência</option>
-            </select>
-            <div style="font-size:11px;color:var(--text2);margin-top:5px">
-              Cada empresa pode usar um modelo diferente. Haiku é ideal para atendimento rápido.
+            <label>Modelo</label>
+            <input class="ai-input" id="ag-modelo" value="${agenteCfg.modelo||'claude-haiku-4-5-20251001'}" placeholder="ex: claude-haiku-4-5-20251001">
+            <div style="font-size:11px;color:var(--text2);margin-top:4px" id="ag-modelo-hint">
+              Claude: claude-haiku-4-5-20251001 · claude-sonnet-4-6 · claude-opus-4-6<br>
+              OpenAI: gpt-4o · gpt-4o-mini · gpt-3.5-turbo<br>
+              Gemini: gemini-2.0-flash · gemini-2.5-flash · gemini-1.5-flash-001 · gemini-1.5-pro-001
             </div>
           </div>
 
@@ -3570,9 +3689,6 @@ function renderAgente() {
           <button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%"
             onclick="testarTTS()">🔊 Testar voz</button>
         </div>
-          </div>
-          <div style="font-size:11px;color:var(--text2);margin:-4px 0 10px">
-            Obtenha em <span style="color:var(--gold)">console.anthropic.com</span> → API Keys
           </div>
           <div class="ai-field">
             <label>Limite de histórico (mensagens)</label>
