@@ -401,7 +401,6 @@ tr.row-warn     td { background: rgba(245,166,35,.06) !important; }
 .wpp-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(245,166,35,.5) transparent;
-  height: 500px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -3593,6 +3592,7 @@ function renderAgente() {
     <div class="ai-tab"        id="tab-treinamentos" onclick="switchAgenteAba('treinamentos')">📚 Treinamentos</div>
     ${SESSION.is_super_admin ? `<div class="ai-tab" id="tab-chat" onclick="switchAgenteAba('chat')">💬 Chat de Teste</div>` : ''}
     ${SESSION.is_admin && !SESSION.is_super_admin ? `<div class="ai-tab" id="tab-intervencao" onclick="switchAgenteAba('intervencao')" style="color:var(--red)">🛑 Intervenção Humana</div>` : ''}
+    ${SESSION.is_super_admin ? `<div class="ai-tab" id="tab-dashboard" onclick="switchAgenteAba('dashboard')">📊 Dashboard</div>` : ""}
   </div>
 
   <!-- ══ ABA: CONFIGURAÇÃO ══ -->
@@ -3923,8 +3923,8 @@ function renderAgente() {
       </div>
 
       <!-- ══ CHAT ADMIN WHATSAPP ══ -->
-      <div style="margin-top:22px">
-        <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+      <div style="margin-top:22px;display:flex;flex-direction:column;height:calc(100vh - 280px);min-height:420px;">
+        <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
           💬 Chat WhatsApp — Atendimento do Gerente
           <span style="font-size:11px;font-family:'Nunito';font-weight:700;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);color:var(--gold);padding:3px 10px;border-radius:20px;">🔐 Restrito</span>
           <button onclick="carregarConversasAdmin()" title="Atualizar conversas"
@@ -3932,10 +3932,10 @@ function renderAgente() {
             onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">🔄 Atualizar</button>
         </div>
 
-        <div class="wpp-admin-layout">
+        <div class="wpp-admin-layout" style="flex:1;min-height:0;height:100%;overflow:hidden;">
 
           <!-- LISTA DE CONTATOS -->
-          <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2)">
+          <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);height:100%;min-height:0;overflow:hidden;">
             <div style="padding:10px 12px;border-bottom:1px solid var(--border);background:var(--bg3)">
               <input type="text" placeholder="🔍 Buscar contato..." id="wpp-search-contact"
                 oninput="filtrarContatosAdmin(this.value)"
@@ -3947,7 +3947,7 @@ function renderAgente() {
               <button onclick="filtrarStatusAdmin('humano')" id="filt-humano" style="flex:1;padding:5px 3px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:10px;font-weight:900;cursor:pointer;font-family:'Nunito';transition:all .15s">🛑 Humano</button>
               <button onclick="filtrarStatusAdmin('ia')"     id="filt-ia"     style="flex:1;padding:5px 3px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:10px;font-weight:900;cursor:pointer;font-family:'Nunito';transition:all .15s">🤖 IA</button>
             </div>
-            <div id="wpp-admin-contacts" style="flex:1;overflow-y:auto;">
+            <div id="wpp-admin-contacts" style="flex:1;min-height:0;overflow-y:auto;">
               <div style="text-align:center;padding:32px;color:var(--text2);font-size:13px;">
                 <div style="font-size:32px;margin-bottom:8px">📲</div>
                 Conecte o WhatsApp<br>para ver as conversas
@@ -3956,7 +3956,7 @@ function renderAgente() {
           </div>
 
           <!-- CHAT ABERTO -->
-          <div style="display:flex;flex-direction:column;background:var(--bg)">
+          <div style="display:flex;flex-direction:column;background:var(--bg);height:100%;min-height:0;overflow:hidden;">
             <div id="wpp-admin-header" style="padding:12px 18px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:12px;min-height:62px;">
               <div style="font-size:28px">💬</div>
               <div style="flex:1">
@@ -3978,7 +3978,7 @@ function renderAgente() {
             </div>
 
             <!-- Mensagens -->
-           <div id="wpp-admin-msgs" class="wpp-scroll" style="flex: 1; height: 100%; overflow-y: auto; min-height: 0; padding: 14px; display: flex; flex-direction: column; background: var(--bg); background-image: radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px); background-size: 26px 26px;">
+           <div id="wpp-admin-msgs" class="wpp-scroll" style="flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;background:var(--bg);background-image:radial-gradient(circle,rgba(245,166,35,.03) 1px,transparent 1px);background-size:26px 26px;">
               <div style="text-align:center;color:var(--text2);font-size:13px;margin-top:60px;">
                 <div style="font-size:48px;margin-bottom:12px">📲</div>
                 <div style="font-weight:700">Selecione uma conversa para ver o histórico</div>
@@ -4847,6 +4847,100 @@ function renderAgente() {
     </div>
   </div>
 
+  <!-- ══ ABA: DASHBOARD ══ -->
+  <div class="ai-tab-panel" id="panel-dashboard">
+    <div style="max-width:1100px;margin:0 auto;">
+
+      <!-- Header + filtro de período -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-family:'Bebas Neue';font-size:22px;color:var(--gold);letter-spacing:1px;">📊 Dashboard do Agente</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">Informações em tempo real sobre desempenho do agente IA</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="dash-periodo" class="input-field" style="padding:7px 12px;font-size:12px;min-width:160px;" onchange="renderDashboardAgente()">
+            <option value="7">Últimos 7 dias</option>
+            <option value="14">Últimos 14 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="renderDashboardAgente()">🔄 Atualizar</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;" id="dash-kpi-grid">
+        <!-- preenchido via JS -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(45,198,83,.15);display:flex;align-items:center;justify-content:center;font-size:16px;">✅</div>
+            <span style="font-size:12px;font-weight:700;color:var(--text2);">Atendimentos Concluídos</span>
+          </div>
+          <div id="dash-kpi-atendimentos" style="font-size:28px;font-weight:900;color:var(--text);">—</div>
+          <div id="dash-kpi-atendimentos-delta" style="font-size:11px;color:var(--text2);margin-top:4px;">vs período anterior</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(58,134,255,.15);display:flex;align-items:center;justify-content:center;font-size:16px;">🤖</div>
+            <span style="font-size:12px;font-weight:700;color:var(--text2);">Respostas da IA</span>
+          </div>
+          <div id="dash-kpi-ia" style="font-size:28px;font-weight:900;color:var(--text);">—</div>
+          <div id="dash-kpi-ia-delta" style="font-size:11px;color:var(--text2);margin-top:4px;">vs período anterior</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(230,57,70,.15);display:flex;align-items:center;justify-content:center;font-size:16px;">🛑</div>
+            <span style="font-size:12px;font-weight:700;color:var(--text2);">Intervenções Humanas</span>
+          </div>
+          <div id="dash-kpi-humano" style="font-size:28px;font-weight:900;color:var(--text);">—</div>
+          <div id="dash-kpi-humano-delta" style="font-size:11px;color:var(--text2);margin-top:4px;">vs período anterior</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,166,35,.15);display:flex;align-items:center;justify-content:center;font-size:16px;">👥</div>
+            <span style="font-size:12px;font-weight:700;color:var(--text2);">Novos Contatos</span>
+          </div>
+          <div id="dash-kpi-contatos" style="font-size:28px;font-weight:900;color:var(--text);">—</div>
+          <div id="dash-kpi-contatos-delta" style="font-size:11px;color:var(--text2);margin-top:4px;">vs período anterior</div>
+        </div>
+      </div>
+
+      <!-- Gráficos linha -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+          <div style="font-weight:800;font-size:13px;margin-bottom:4px;">📈 Mensagens por Dia</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:16px;">Volume diário de atendimentos no período</div>
+          <canvas id="dash-chart-msgs" height="120"></canvas>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+          <div style="font-weight:800;font-size:13px;margin-bottom:4px;">🍩 IA vs Humano</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:16px;">Distribuição de atendimentos</div>
+          <canvas id="dash-chart-doughnut" height="160"></canvas>
+          <div id="dash-doughnut-legend" style="display:flex;gap:16px;justify-content:center;margin-top:14px;font-size:11px;"></div>
+        </div>
+      </div>
+
+      <!-- Top Contatos + Resumo status -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+          <div style="font-weight:800;font-size:13px;margin-bottom:4px;">🏆 Top Contatos</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:14px;">Contatos com mais interações no período</div>
+          <div id="dash-top-contatos" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="text-align:center;color:var(--text2);font-size:12px;padding:20px;">Carregando...</div>
+          </div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+          <div style="font-weight:800;font-size:13px;margin-bottom:4px;">📋 Resumo do Status</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:14px;">Conversas abertas por classificação</div>
+          <div id="dash-status-resumo" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="text-align:center;color:var(--text2);font-size:12px;padding:20px;">Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   </div>
   `;
 
@@ -4865,11 +4959,201 @@ function renderAgente() {
   });
 }
 
+
+// ============================================================
+//  DASHBOARD DO AGENTE — Super Admin
+// ============================================================
+let _dashChartMsgs = null;
+let _dashChartDoughnut = null;
+
+async function renderDashboardAgente() {
+  const dias = parseInt(document.getElementById('dash-periodo')?.value || 30);
+  const slug = SESSION?.slug || '';
+  const supaUrl  = localStorage.getItem('sb_url')  || SESSION?.supabase_url  || '';
+  const supaKey  = localStorage.getItem('sb_key')  || SESSION?.supabase_key  || '';
+
+  // ── Gerar datas ──
+  const hoje = new Date();
+  const inicio = new Date(); inicio.setDate(hoje.getDate() - dias);
+  const inicioAnterior = new Date(); inicioAnterior.setDate(hoje.getDate() - dias * 2);
+  const fmtISO = d => d.toISOString();
+
+  let msgs = [], msgsAnt = [];
+
+  if (supaUrl && supaKey && slug) {
+    try {
+      const headers = { apikey: supaKey, Authorization: 'Bearer ' + supaKey, 'Content-Type': 'application/json' };
+      const [r1, r2] = await Promise.all([
+        fetch(`${supaUrl}/rest/v1/mensagens_webhook?slug=eq.${encodeURIComponent(slug)}&criado_em=gte.${fmtISO(inicio)}&order=criado_em.asc`, { headers }),
+        fetch(`${supaUrl}/rest/v1/mensagens_webhook?slug=eq.${encodeURIComponent(slug)}&criado_em=gte.${fmtISO(inicioAnterior)}&criado_em=lt.${fmtISO(inicio)}&order=criado_em.asc`, { headers })
+      ]);
+      if (r1.ok) msgs    = await r1.json();
+      if (r2.ok) msgsAnt = await r2.json();
+    } catch(e) { console.warn('Supabase dash error:', e); }
+  }
+
+  // ── Calcular KPIs ──
+  const total     = msgs.length;
+  const totalAnt  = msgsAnt.length;
+  const iaCount   = msgs.filter(m => m.ai_respondeu).length;
+  const humCount  = msgs.filter(m => !m.ai_respondeu).length;
+  const iaAnt     = msgsAnt.filter(m => m.ai_respondeu).length;
+  const humAnt    = msgsAnt.filter(m => !m.ai_respondeu).length;
+  const contatos  = [...new Set(msgs.map(m => m.from_number))].length;
+  const contAnt   = [...new Set(msgsAnt.map(m => m.from_number))].length;
+
+  const pct = (a, b) => b === 0 ? null : Math.round((a - b) / b * 100);
+  const deltaHtml = (v, prev) => {
+    const p = pct(v, prev);
+    if (p === null) return '<span style="color:var(--text2)">— sem dados anteriores</span>';
+    const cor = p >= 0 ? 'var(--green)' : 'var(--red)';
+    const icn = p >= 0 ? '↑' : '↓';
+    return `<span style="color:${cor};font-weight:700;">${icn} ${Math.abs(p)}%</span> vs período anterior`;
+  };
+
+  // ── Preencher KPIs ──
+  const set = (id, v) => { const el = document.getElementById(id); if(el) el.innerHTML = v; };
+  set('dash-kpi-atendimentos', total);
+  set('dash-kpi-atendimentos-delta', deltaHtml(total, totalAnt));
+  set('dash-kpi-ia', iaCount);
+  set('dash-kpi-ia-delta', deltaHtml(iaCount, iaAnt));
+  set('dash-kpi-humano', humCount);
+  set('dash-kpi-humano-delta', deltaHtml(humCount, humAnt));
+  set('dash-kpi-contatos', contatos);
+  set('dash-kpi-contatos-delta', deltaHtml(contatos, contAnt));
+
+  // ── Gráfico linha: mensagens por dia ──
+  const dayMap = {};
+  for (let i = 0; i < dias; i++) {
+    const d = new Date(inicio); d.setDate(inicio.getDate() + i);
+    dayMap[d.toISOString().slice(0,10)] = 0;
+  }
+  msgs.forEach(m => {
+    const key = (m.criado_em || '').slice(0,10);
+    if (key in dayMap) dayMap[key]++;
+  });
+  const labels = Object.keys(dayMap);
+  const valores = Object.values(dayMap);
+
+  const ctxLine = document.getElementById('dash-chart-msgs');
+  if (ctxLine) {
+    if (_dashChartMsgs) _dashChartMsgs.destroy();
+    _dashChartMsgs = new Chart(ctxLine, {
+      type: 'line',
+      data: {
+        labels: labels.map(l => { const [,m,d] = l.split('-'); return `${d}/${m}`; }),
+        datasets: [{
+          label: 'Mensagens',
+          data: valores,
+          borderColor: '#f5a623',
+          backgroundColor: 'rgba(245,166,35,.1)',
+          borderWidth: 2,
+          pointRadius: dias <= 14 ? 4 : 2,
+          pointBackgroundColor: '#f5a623',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+          y: { ticks: { color: '#888', font: { size: 10 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,.06)' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // ── Gráfico donut: IA vs Humano ──
+  const ctxDnt = document.getElementById('dash-chart-doughnut');
+  if (ctxDnt) {
+    if (_dashChartDoughnut) _dashChartDoughnut.destroy();
+    const dData = total > 0 ? [iaCount, humCount] : [1, 0];
+    const dColors = ['#3a86ff', '#e63946'];
+    _dashChartDoughnut = new Chart(ctxDnt, {
+      type: 'doughnut',
+      data: {
+        labels: ['IA', 'Humano'],
+        datasets: [{ data: dData, backgroundColor: dColors, borderWidth: 0, hoverOffset: 4 }]
+      },
+      options: {
+        responsive: true,
+        cutout: '68%',
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: ctx => ` ${ctx.label}: ${total > 0 ? ctx.raw : 0} (${total > 0 ? Math.round(ctx.raw/total*100) : 0}%)`
+        }}}
+      }
+    });
+    const leg = document.getElementById('dash-doughnut-legend');
+    if (leg) leg.innerHTML = dColors.map((c,i) => {
+      const lbl = ['IA','Humano'][i];
+      const val = total > 0 ? dData[i] : 0;
+      const prc = total > 0 ? Math.round(val/total*100) : 0;
+      return `<div style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;"></span><span>${lbl}: <b>${val}</b> (${prc}%)</span></div>`;
+    }).join('');
+  }
+
+  // ── Top Contatos ──
+  const contatoMap = {};
+  msgs.forEach(m => {
+    if (!m.from_number) return;
+    contatoMap[m.from_number] = (contatoMap[m.from_number] || 0) + 1;
+  });
+  const top5 = Object.entries(contatoMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topEl = document.getElementById('dash-top-contatos');
+  if (topEl) {
+    if (top5.length === 0) {
+      topEl.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:12px;padding:20px;">Nenhum dado no período</div>';
+    } else {
+      const maxVal = top5[0][1];
+      topEl.innerHTML = top5.map(([num, cnt], i) => `
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:11px;font-weight:900;color:var(--text2);width:14px;">${i+1}</span>
+          <div style="flex:1;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:12px;font-weight:700;">${num.replace(/^55/,'').replace(/(\d{2})(\d{5})(\d{4})/,'($1) $2-$3')}</span>
+              <span style="font-size:12px;font-weight:900;color:var(--gold);">${cnt}</span>
+            </div>
+            <div style="height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;">
+              <div style="height:100%;width:${Math.round(cnt/maxVal*100)}%;background:var(--gold);border-radius:4px;"></div>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+  }
+
+  // ── Resumo de Status ──
+  const statusEl = document.getElementById('dash-status-resumo');
+  if (statusEl) {
+    const iaOpen  = msgs.filter(m => m.ai_respondeu).length;
+    const humOpen = msgs.filter(m => !m.ai_respondeu).length;
+    const taxaIA  = total > 0 ? Math.round(iaOpen/total*100) : 0;
+    const mediaMsg = contatos > 0 ? (total / contatos).toFixed(1) : '0';
+    const items = [
+      { icon: '🤖', label: 'Taxa de resolução IA',   val: taxaIA + '%',    cor: '#3a86ff', pct: taxaIA },
+      { icon: '🛑', label: 'Intervenções humanas',    val: humOpen,          cor: '#e63946', pct: total > 0 ? Math.round(humOpen/total*100) : 0 },
+      { icon: '📨', label: 'Média msgs/contato',      val: mediaMsg,         cor: '#f5a623', pct: Math.min(parseFloat(mediaMsg)*10, 100) },
+      { icon: '👥', label: 'Total de contatos únicos',val: contatos,         cor: '#2dc653', pct: 100 },
+    ];
+    statusEl.innerHTML = items.map(it => `
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <span style="font-size:12px;">${it.icon} ${it.label}</span>
+          <span style="font-size:13px;font-weight:900;color:${it.cor};">${it.val}</span>
+        </div>
+        <div style="height:5px;background:var(--bg3);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${it.pct}%;background:${it.cor};border-radius:4px;transition:width .6s;"></div>
+        </div>
+      </div>`).join('');
+  }
+}
+
 // ── ABAS ─────────────────────────────────────────────────────
 function switchAgenteAba(aba) {
   agenteAbaAtiva = aba;
   const abas = ['config','whatsapp','preferencias','integracoes','intencoes','treinamentos',
-    ...(SESSION.is_super_admin ? ['chat'] : []),
+    ...(SESSION.is_super_admin ? ['chat','dashboard'] : []),
     ...(!SESSION.is_super_admin && SESSION.is_admin ? ['intervencao'] : [])];
   abas.forEach(a => {
     document.getElementById('tab-'+a)?.classList.toggle('active', a===aba);
@@ -4878,6 +5162,7 @@ function switchAgenteAba(aba) {
   if (aba === 'intervencao') setTimeout(carregarConversasWpp, 100);
   if (aba === 'whatsapp')   setTimeout(iniciarPainelWpp, 100);
   if (aba === 'treinamentos') setTimeout(renderTreinoLista, 100);
+  if (aba === 'dashboard')    setTimeout(renderDashboardAgente, 100);
 }
 
 // ══ PREFERÊNCIAS ══
@@ -6974,11 +7259,11 @@ function renderWppAdminPanel() {
   </div>
 
   <!-- CONTEÚDO DESBLOQUEADO -->
-  <div id="wpp-admin-page-content" style="display:${wppAdminDesbloqueado?'flex':'none'};flex:1;height: calc(100vh - 120px),min-height:0;padding:0 20px 20px;">
-    <div class="wpp-admin-layout" style="flex:1;min-height:0;height:100%;">
+  <div id="wpp-admin-page-content" style="display:${wppAdminDesbloqueado?'flex':'none'};flex:1;min-height:0;overflow:hidden;padding:0 20px 20px;">
+    <div class="wpp-admin-layout" style="flex:1;min-height:0;height:100%;overflow:hidden;">
 
       <!-- COLUNA ESQUERDA: lista de conversas -->
-      <div style="display:flex;flex-direction:column;background:var(--bg2);border-radius:14px 0 0 14px;border-right:1px solid var(--border);height:100%;min-height:0;">
+      <div style="display:flex;flex-direction:column;background:var(--bg2);border-radius:14px 0 0 14px;border-right:1px solid var(--border);height:100%;min-height:0;overflow:hidden;">
         <div style="padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
           <div style="font-weight:900;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:6px">💬 Conversas</div>
           <input type="text" placeholder="🔍 Buscar contato..." id="wpp-search-contact"
