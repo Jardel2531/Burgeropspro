@@ -3585,8 +3585,12 @@ function renderAgente() {
   c.innerHTML = `
   <!-- ABAS INTERNAS -->
   <div class="ai-tabs">
-    <div class="ai-tab active" id="tab-config"   onclick="switchAgenteAba('config')">⚙️ Configuração</div>
-    <div class="ai-tab"        id="tab-whatsapp" onclick="switchAgenteAba('whatsapp')">📲 WhatsApp</div>
+    <div class="ai-tab active" id="tab-config"       onclick="switchAgenteAba('config')">⚙️ Configuração</div>
+    <div class="ai-tab"        id="tab-whatsapp"     onclick="switchAgenteAba('whatsapp')">📲 WhatsApp</div>
+    <div class="ai-tab"        id="tab-preferencias" onclick="switchAgenteAba('preferencias')">🎛️ Preferências</div>
+    <div class="ai-tab"        id="tab-integracoes"  onclick="switchAgenteAba('integracoes')">🔌 Integrações</div>
+    <div class="ai-tab"        id="tab-intencoes"    onclick="switchAgenteAba('intencoes')">🎯 Intenções</div>
+    <div class="ai-tab"        id="tab-treinamentos" onclick="switchAgenteAba('treinamentos')">📚 Treinamentos</div>
     ${SESSION.is_super_admin ? `<div class="ai-tab" id="tab-chat" onclick="switchAgenteAba('chat')">💬 Chat de Teste</div>` : ''}
     ${SESSION.is_admin && !SESSION.is_super_admin ? `<div class="ai-tab" id="tab-intervencao" onclick="switchAgenteAba('intervencao')" style="color:var(--red)">🛑 Intervenção Humana</div>` : ''}
   </div>
@@ -4119,10 +4123,732 @@ function renderAgente() {
       </div>
     </div>
   </div>
+
+  <!-- ══ ABA: PREFERÊNCIAS DA CONVERSA ══ -->
+  <div class="ai-tab-panel" id="panel-preferencias">
+    <div class="ai-card" style="max-width:900px;margin:0 auto;">
+      <div class="ai-card-title">🎛️ Preferências da Conversa</div>
+
+      <!-- Tabs internas de preferências -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;">
+        <button class="pref-subtab active" id="pref-tab-conversa"    onclick="switchPrefTab('conversa')"   style="padding:10px 20px;background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;">Conversa</button>
+        <button class="pref-subtab"        id="pref-tab-inatividade" onclick="switchPrefTab('inatividade')" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;">Ações de inatividade</button>
+        <button class="pref-subtab"        id="pref-tab-webhooks"    onclick="switchPrefTab('webhooks')"    style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;">Webhooks</button>
+        <button class="pref-subtab"        id="pref-tab-transferencia" onclick="switchPrefTab('transferencia')" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;">Regras de transferência</button>
+      </div>
+
+      <!-- Sub-painel: Conversa -->
+      <div id="pref-panel-conversa" class="pref-panel" style="display:block;">
+        ${[
+          { id:'pref-transferir', icon:'🔀', title:'Transferir para humano', desc:'Habilite para que o agente possa transferir o atendimento para aba \'em espera\' de equipe humana.', def: true },
+          { id:'pref-resumo',     icon:'📋', title:'Resumo ao transferir para humano', desc:'Habilite para gerar automaticamente um resumo do atendimento ao transferir a conversa da IA para um atendente humano.', def: true },
+          { id:'pref-emojis',     icon:'😊', title:'Usar Emojis Nas Respostas', desc:'Define se o agente pode utilizar emojis em suas respostas.', def: false },
+          { id:'pref-assinar',    icon:'✍️', title:'Assinar nome do agente nas respostas', desc:'Ative esta opção para que o agente de IA adicione automaticamente sua assinatura em cada resposta enviada ao usuário.', def: false },
+          { id:'pref-restringir', icon:'🚫', title:'Restringir Temas Permitidos', desc:'Marque essa opção para que o agente não fale sobre outros assuntos.', def: true },
+          { id:'pref-dividir',    icon:'✂️', title:'Dividir resposta em partes', desc:'Em caso da mensagem ficar grande, o agente pode separar em várias mensagens.', def: true },
+          { id:'pref-digitando',  icon:'⌨️', title:'Simulação de "digitando..."', desc:'Ativa o indicador de digitação no WhatsApp enquanto o agente processa a resposta, tornando a conversa mais natural e humanizada.', def: true },
+          { id:'pref-lembrete',   icon:'🔔', title:'Permitir registrar lembretes', desc:'Habilite essa opção para que o agente tenha a capacidade de registrar lembretes ao usuário.', def: true },
+          { id:'pref-busca',      icon:'🔍', title:'Busca inteligente do treinamento', desc:'O agente consulta a base de treinamentos no momento certo, para trazer respostas mais precisas.', def: true, beta: true },
+        ].map(item => `
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div style="font-size:22px;width:28px;text-align:center;margin-top:2px;">${item.icon}</div>
+              <div>
+                <div style="font-weight:800;font-size:14px;margin-bottom:3px;">${item.title}${item.beta?'<span style="margin-left:8px;background:rgba(58,134,255,.2);color:var(--blue);font-size:9px;font-weight:900;padding:2px 7px;border-radius:10px;letter-spacing:.5px;vertical-align:middle;">BETA</span>':''}</div>
+                <div style="font-size:12px;color:var(--text2);line-height:1.5;">${item.desc}</div>
+              </div>
+            </div>
+            <label class="toggle" style="flex-shrink:0;margin-top:4px;">
+              <input type="checkbox" id="${item.id}" ${item.def?'checked':''} onchange="salvarPreferencias()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>`).join('')}
+
+        <!-- Dropdowns -->
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div style="font-size:22px;width:28px;text-align:center;">🌍</div>
+              <div>
+                <div style="font-weight:800;font-size:14px;margin-bottom:3px;">Timezone do agente</div>
+                <div style="font-size:12px;color:var(--text2);">Escolha o timezone que agente usará para datas, por exemplo agendar reuniões.</div>
+              </div>
+            </div>
+            <select id="pref-timezone" class="input-field" style="min-width:200px;" onchange="salvarPreferencias()">
+              <option value="America/Sao_Paulo">(GMT-03:00) Sao Paulo</option>
+              <option value="America/Manaus">(GMT-04:00) Manaus</option>
+              <option value="America/Belem">(GMT-03:00) Belém</option>
+              <option value="America/Fortaleza">(GMT-03:00) Fortaleza</option>
+              <option value="America/Recife">(GMT-03:00) Recife</option>
+              <option value="America/Noronha">(GMT-02:00) Noronha</option>
+              <option value="America/New_York">(GMT-05:00) New York</option>
+              <option value="Europe/Lisbon">(GMT+00:00) Lisboa</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div style="font-size:22px;width:28px;text-align:center;">⏱️</div>
+              <div>
+                <div style="font-weight:800;font-size:14px;margin-bottom:3px;">Tempo de resposta</div>
+                <div style="font-size:12px;color:var(--text2);">Defina um intervalo para o agente esperar e dar uma resposta.</div>
+              </div>
+            </div>
+            <select id="pref-tempo-resposta" class="input-field" style="min-width:200px;" onchange="salvarPreferencias()">
+              <option value="0">Imediatamente</option>
+              <option value="5">5 segundos</option>
+              <option value="10">10 segundos</option>
+              <option value="15">15 segundos</option>
+              <option value="30">30 segundos</option>
+              <option value="60">1 minuto</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div style="font-size:22px;width:28px;text-align:center;">🔢</div>
+              <div>
+                <div style="font-weight:800;font-size:14px;margin-bottom:3px;">Limite de interações por atendimento</div>
+                <div style="font-size:12px;color:var(--text2);">Defina a quantidade de interações que o agente pode aceitar por atendimento.</div>
+              </div>
+            </div>
+            <select id="pref-limite-int" class="input-field" style="min-width:200px;" onchange="salvarPreferencias()">
+              <option value="0">Sem limite</option>
+              <option value="5">5 interações</option>
+              <option value="10">10 interações</option>
+              <option value="20">20 interações</option>
+              <option value="50">50 interações</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+          <button class="btn btn-gold" onclick="salvarPreferencias()">💾 Salvar</button>
+        </div>
+      </div>
+
+      <!-- Sub-painel: Ações de inatividade -->
+      <div id="pref-panel-inatividade" class="pref-panel" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;margin-bottom:16px;">
+          <span>ℹ️</span>
+          <span>Configure ações que o agente deve executar quando o cliente parar de responder.</span>
+        </div>
+        <button onclick="adicionarAcaoAnterior()" style="background:none;border:none;color:var(--cyan);font-family:'Nunito';font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;padding:0;">+ Adicionar ação anterior</button>
+        <div id="inatividade-acoes">
+          <div class="inatividade-acao-row" style="display:flex;align-items:center;gap:12px;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;">
+            <span style="font-size:18px;">⏱️</span>
+            <span style="font-size:13px;color:var(--text2);">Se não responder em</span>
+            <select class="input-field" style="min-width:140px;">
+              <option>5 minutos</option>
+              <option selected>10 minutos</option>
+              <option>15 minutos</option>
+              <option>30 minutos</option>
+              <option>1 hora</option>
+              <option>2 horas</option>
+              <option>24 horas</option>
+            </select>
+            <span style="font-size:13px;color:var(--text2);">o agente deve</span>
+            <select class="input-field" style="min-width:200px;">
+              <option>Finalizar atendimento.</option>
+              <option>Enviar mensagem de aviso.</option>
+              <option>Transferir para humano.</option>
+              <option>Aguardar resposta.</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <button class="btn btn-gold" onclick="toast('✅ Ações de inatividade salvas!','success')">💾 Salvar</button>
+        </div>
+      </div>
+
+      <!-- Sub-painel: Webhooks -->
+      <div id="pref-panel-webhooks" class="pref-panel" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;margin-bottom:16px;">
+          <span>ℹ️</span>
+          <span>Escute eventos que acontecem no sistema e tome ações como enviar um webhook.</span>
+        </div>
+        <button onclick="adicionarEvento()" style="background:none;border:none;color:var(--cyan);font-family:'Nunito';font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;padding:0;">+ Adicionar novo evento.</button>
+        <div id="webhooks-lista" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <button class="btn btn-gold" onclick="toast('✅ Webhooks salvos!','success')">💾 Salvar</button>
+        </div>
+      </div>
+
+      <!-- Sub-painel: Regras de transferência -->
+      <div id="pref-panel-transferencia" class="pref-panel" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;margin-bottom:16px;">
+          <span>ℹ️</span>
+          <span>Configure instruções para o agente fazer transferência do atendimento.</span>
+        </div>
+        <button onclick="adicionarRegraTransferencia()" style="background:none;border:none;color:var(--cyan);font-family:'Nunito';font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px;padding:0;">+ Adicionar regra de transferência.</button>
+        <div id="transferencia-lista" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <button class="btn btn-gold" onclick="toast('✅ Regras salvas!','success')">💾 Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ABA: INTEGRAÇÕES ══ -->
+  <div class="ai-tab-panel" id="panel-integracoes">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="margin-bottom:8px;">
+        <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;margin-bottom:4px;">🔌 Integrações</div>
+        <div style="font-size:13px;color:var(--text2);">Conecte o seu agente a outros aplicativos, isso permite que ele obtenha informações mais precisas ou agende reuniões para você.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px;">
+
+        <!-- ElevenLabs -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(245,166,35,.4)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:52px;height:52px;border-radius:12px;background:#1a1a1a;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;letter-spacing:-1px;flex-shrink:0;">II</div>
+          <div style="font-weight:900;font-size:15px;">ElevenLabs</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;flex:1;">Com ElevenLabs você dá a capacidade do seu agente responder seus clientes em áudio, tornando ainda mais humanizado.</div>
+          <button onclick="abrirModalElevenLabs()" style="background:var(--cyan);border:none;color:#000;font-family:'Nunito';font-size:12px;font-weight:800;padding:9px 22px;border-radius:8px;cursor:pointer;width:100%;transition:all .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">⚡ ATIVAR INTEGRAÇÃO</button>
+        </div>
+
+        <!-- Google Calendar -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(245,166,35,.4)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#4285f4,#34a853);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">📅</div>
+          <div style="font-weight:900;font-size:15px;">Google Calendar</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;flex:1;">Com google calendar sua agente será capaz de agendar reuniões, criar link da chamada e já enviar os convites.</div>
+          <button onclick="abrirModalGoogleCalendar()" style="background:var(--cyan);border:none;color:#000;font-family:'Nunito';font-size:12px;font-weight:800;padding:9px 22px;border-radius:8px;cursor:pointer;width:100%;transition:all .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">⚡ ATIVAR INTEGRAÇÃO</button>
+        </div>
+
+        <!-- Plug Chat -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(245,166,35,.4)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:52px;height:52px;border-radius:12px;background:rgba(155,89,182,.15);border:1px solid rgba(155,89,182,.3);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">💬</div>
+          <div style="font-weight:900;font-size:15px;">Plug Chat</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;flex:1;">Caso sua IA ainda não consiga responder algumas perguntas, permita direcionar o atendimento a um humano.</div>
+          <button onclick="abrirModalPlugChat()" style="background:var(--cyan);border:none;color:#000;font-family:'Nunito';font-size:12px;font-weight:800;padding:9px 22px;border-radius:8px;cursor:pointer;width:100%;transition:all .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">⚡ ATIVAR INTEGRAÇÃO</button>
+        </div>
+
+        <!-- E-vendi -->
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(245,166,35,.4)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="width:52px;height:52px;border-radius:12px;background:rgba(0,188,212,.1);border:1px solid rgba(0,188,212,.25);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">🛒</div>
+          <div style="font-weight:900;font-size:15px;">E-vendi</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;flex:1;">Faça sua IA ter acesso a todos os produtos da sua loja, podendo falar sobre preços, enviar fotos e links.</div>
+          <button onclick="abrirModalEvendi()" style="background:var(--cyan);border:none;color:#000;font-family:'Nunito';font-size:12px;font-weight:800;padding:9px 22px;border-radius:8px;cursor:pointer;width:100%;transition:all .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">⚡ ATIVAR INTEGRAÇÃO</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ MODAL: ELEVENLABS ══ -->
+    <div id="modal-elevenlabs" class="modal-bg" onclick="if(event.target===this)fecharModal('elevenlabs')">
+      <div class="modal" style="width:460px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="font-weight:900;font-size:18px;">Ativar integração</div>
+          <button onclick="fecharModal('elevenlabs')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+        </div>
+        <div class="form-group">
+          <label style="font-size:13px;font-weight:800;color:var(--text);">Token de integração:</label>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Informe abaixo o token de integração ElevenLabs.</div>
+          <input class="input-field" id="el-token" placeholder="Token" style="width:100%;">
+        </div>
+        <div style="margin:8px 0 20px;">
+          <a href="https://elevenlabs.io" target="_blank" style="font-size:13px;color:var(--cyan);text-decoration:none;">Não tem seu token? <strong>Crie sua conta agora</strong></a>
+        </div>
+        <button onclick="confirmarElevenLabs()" style="width:100%;background:#00b4a0;border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:14px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">ATIVAR INTEGRAÇÃO</button>
+      </div>
+    </div>
+
+    <!-- ══ MODAL: GOOGLE OAUTH (CONECTAR CONTA) ══ -->
+    <div id="modal-google-oauth" class="modal-bg" onclick="if(event.target===this)fecharModal('google-oauth')" style="z-index:1200;">
+      <div style="background:#202124;border-radius:14px;width:440px;max-width:95vw;overflow:hidden;transform:scale(.95);transition:transform .2s;box-shadow:0 24px 80px rgba(0,0,0,.8);" id="modal-google-oauth-inner">
+        <div style="background:#303134;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #3c4043;">
+          <div style="display:flex;gap:6px;">
+            <div style="width:12px;height:12px;border-radius:50%;background:#ea4335;cursor:pointer;" onclick="fecharModal('google-oauth')"></div>
+            <div style="width:12px;height:12px;border-radius:50%;background:#fbbc04;"></div>
+            <div style="width:12px;height:12px;border-radius:50%;background:#34a853;"></div>
+          </div>
+          <div style="flex:1;background:#202124;border-radius:6px;padding:5px 12px;font-size:11px;color:#9aa0a6;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">accounts.google.com/v3/signin/accountchooser</div>
+        </div>
+        <div style="padding:32px 40px 40px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
+            <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+            <span style="font-size:16px;font-weight:500;color:#e8eaed;">Fazer Login com o Google</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:28px;">
+            <div style="width:68px;height:68px;border-radius:16px;background:#1a1a1a;border:2px solid #f5a623;display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 4px 20px rgba(245,166,35,.25);">
+              <span style="font-size:34px;line-height:1;">&#127828;</span>
+            </div>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;font-weight:700;color:#f5a623;letter-spacing:2px;">BURGEROPS</span>
+          </div>
+          <div style="font-size:24px;font-weight:400;color:#e8eaed;margin-bottom:6px;">Escolha uma conta</div>
+          <div style="font-size:14px;color:#9aa0a6;margin-bottom:24px;">Prosseguir para <span style="color:#8ab4f8;font-weight:500;">BurgerOps</span></div>
+          <!-- Lista de contas -->
+          <div id="google-oauth-accounts" style="display:flex;flex-direction:column;gap:2px;">
+            <div onclick="selecionarContaGoogle('jardelvander25@gmail.com','Jardel Vander')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:8px;cursor:pointer;transition:background .15s;border-bottom:1px solid #3c4043;" onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+              <div style="width:40px;height:40px;border-radius:50%;background:#1a73e8;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">J</div>
+              <div>
+                <div style="font-size:14px;color:#e8eaed;font-weight:500;">Jardel Vander</div>
+                <div style="font-size:12px;color:#9aa0a6;">jardelvander25@gmail.com</div>
+              </div>
+            </div>
+            <div onclick="adicionarOutraConta()" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:8px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+              <div style="width:40px;height:40px;border-radius:50%;background:#3c4043;display:flex;align-items:center;justify-content:center;font-size:20px;color:#9aa0a6;flex-shrink:0;">&#128100;</div>
+              <div style="font-size:14px;color:#e8eaed;">Usar outra conta</div>
+            </div>
+          </div>
+
+          <!-- Painel: digitar outra conta -->
+          <div id="google-oauth-outra" style="display:none;flex-direction:column;gap:14px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+              <div onclick="voltarParaContas()" style="cursor:pointer;color:#9aa0a6;font-size:18px;line-height:1;" onmouseover="this.style.color='#e8eaed'" onmouseout="this.style.color='#9aa0a6'">&#8592;</div>
+              <div style="font-size:15px;font-weight:500;color:#e8eaed;">Entrar com o Google</div>
+            </div>
+            <div style="font-size:13px;color:#9aa0a6;margin-bottom:4px;">Digite seu e-mail ou telefone</div>
+            <div style="position:relative;">
+              <input id="google-outra-email" type="email" placeholder="E-mail ou telefone"
+                style="width:100%;background:transparent;border:1px solid #5f6368;border-radius:4px;padding:13px 14px;font-size:14px;color:#e8eaed;outline:none;font-family:'Nunito',sans-serif;transition:border-color .2s;"
+                onfocus="this.style.borderColor='#8ab4f8'" onblur="this.style.borderColor='#5f6368'"
+                onkeydown="if(event.key==='Enter')confirmarOutraConta()">
+            </div>
+            <div style="font-size:12px;color:#8ab4f8;cursor:pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Esqueceu seu e-mail?</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+              <div style="font-size:13px;color:#8ab4f8;cursor:pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Criar conta</div>
+              <button onclick="confirmarOutraConta()" style="background:#8ab4f8;border:none;border-radius:4px;padding:9px 22px;font-family:'Nunito';font-size:13px;font-weight:700;color:#202124;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#aecbfa'" onmouseout="this.style.background='#8ab4f8'">Próxima</button>
+            </div>
+          </div>
+          <div style="margin-top:28px;padding-top:20px;border-top:1px solid #3c4043;font-size:11px;color:#9aa0a6;line-height:1.6;">
+            Consulte a <span style="color:#8ab4f8;cursor:pointer;">Politica de Privacidade</span> e os <span style="color:#8ab4f8;cursor:pointer;">Termos de Servico</span> do app BurgerOps antes de usa-lo.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MODAL: GOOGLE CALENDAR ══ -->
+    <div id="modal-gcalendar" class="modal-bg" onclick="if(event.target===this)fecharModal('gcalendar')" style="z-index:1100;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:620px;max-width:95vw;max-height:90vh;overflow:hidden;display:flex;transform:scale(.95);transition:transform .2s;box-shadow:0 24px 80px rgba(0,0,0,.6);" id="modal-gcalendar-inner">
+
+        <!-- Sidebar menu -->
+        <div style="width:190px;min-width:190px;background:var(--bg3);border-right:1px solid var(--border);padding:20px 0;">
+          <div style="padding:0 16px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Menu</div>
+          ${['Agendas','Configurações','Campos Customizados','Campos'].map((item,i) => `
+            <div class="gcal-menu-item" data-gcal-tab="${i}" onclick="switchGcalTab(${i})"
+              style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text2);border-radius:8px;margin:0 8px 2px;transition:all .15s;${i===0?'background:rgba(155,89,182,.15);color:#a855f7;':''}">
+              <span>${['🗓️','⚙️','☰','⊞'][i]}</span>${item}
+            </div>`).join('')}
+        </div>
+
+        <!-- Conteúdo -->
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div id="gcal-title" style="font-weight:800;font-size:15px;">Agendas conectadas</div>
+            <button onclick="fecharModal('gcalendar')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:20px 24px;">
+
+            <!-- Tab 0: Agendas — lista -->
+            <div id="gcal-panel-0" class="gcal-panel">
+              <div onclick="abrirConfigAgenda()" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">
+                <span style="font-size:18px;color:#4285f4;">📅</span>
+                <span style="font-weight:700;font-size:14px;flex:1;">jardel</span>
+                <span style="font-size:12px;color:var(--cyan);font-weight:700;">Configurar ›</span>
+              </div>
+            </div>
+
+            <!-- Tab 0b: Config Agenda — Dados Gerais + Horários -->
+            <div id="gcal-panel-agenda" class="gcal-panel" style="display:none;">
+
+              <!-- Sub-sidebar da agenda -->
+              <div style="display:flex;gap:0;height:100%;">
+                <div style="width:160px;min-width:160px;border-right:1px solid var(--border);padding:8px 0;margin-right:20px;">
+                  <div onclick="abrirConfigAgenda()" style="display:flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:4px;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">
+                    ‹ <span style="font-weight:800;">jardel</span>
+                  </div>
+                  <div class="gcal-sub-item active-sub" id="gcal-sub-dados" onclick="switchAgendaTab('dados')"
+                    style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;border-radius:8px;margin:0 6px 2px;background:rgba(155,89,182,.15);color:#a855f7;transition:all .15s;">
+                    <span>⊞</span> Dados Gerais
+                  </div>
+                  <div class="gcal-sub-item" id="gcal-sub-horarios" onclick="switchAgendaTab('horarios')"
+                    style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;border-radius:8px;margin:0 6px 2px;color:var(--text2);transition:all .15s;"
+                    onmouseover="this.style.background='var(--bg4)'" onmouseout="if(!this.classList.contains('active-sub'))this.style.background='transparent'">
+                    <span>⏱️</span> Config. Horários
+                  </div>
+                </div>
+
+                <!-- Painel principal da agenda -->
+                <div style="flex:1;overflow-y:auto;">
+
+                  <!-- Dados Gerais -->
+                  <div id="agenda-panel-dados" style="display:block;">
+                    <div style="font-weight:800;font-size:14px;margin-bottom:16px;">Dados gerais da agenda</div>
+                    <div class="form-group" style="margin-bottom:14px;">
+                      <label style="font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Nome da agenda</label>
+                      <input class="input-field" id="agenda-nome" value="jardel" style="width:100%;margin-top:6px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:20px;">
+                      <label style="font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Agenda</label>
+                      <select class="input-field" style="width:100%;margin-top:6px;">
+                        <option>jardelvander25@gmail.com (principal)</option>
+                      </select>
+                    </div>
+                    ${[
+                      { icon:'⏱️', title:'Tempo mínimo de antecedência', desc:'Não permita agendas em cima da hora', opts:['Não limitar','1 hora','2 horas','3 horas','1 dia','2 dias'], def:0 },
+                      { icon:'↔️', title:'Distância máxima permitida', desc:'Limite máximo de dias permitido', opts:['Até uma semana','2 semanas','1 mês','3 meses','Sem limite'], def:0 },
+                      { icon:'🔄', title:'Duração máxima da agenda', desc:'Limite tempo para cada agendamento', opts:['30 min','1 hora','2 horas','3 horas','4 horas'], def:1 },
+                    ].map(item => `
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;gap:10px;align-items:flex-start;">
+                          <span style="font-size:18px;color:#a855f7;">${item.icon}</span>
+                          <div>
+                            <div style="font-weight:800;font-size:13px;">${item.title}</div>
+                            <div style="font-size:11px;color:var(--text2);margin-top:2px;">${item.desc}</div>
+                          </div>
+                        </div>
+                        <select class="input-field" style="min-width:120px;font-size:12px;">${item.opts.map((o,i)=>`<option${i===item.def?' selected':''}>${o}</option>`).join('')}</select>
+                      </div>`).join('')}
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                      <button style="background:none;border:none;color:var(--red);font-family:'Nunito';font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">🔗 Remover agenda</button>
+                      <button onclick="toast('✅ Agenda salva!','success')" style="background:#00b4a0;border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:9px 24px;border-radius:8px;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Salvar</button>
+                    </div>
+                  </div>
+
+                  <!-- Config. Horários -->
+                  <div id="agenda-panel-horarios" style="display:none;">
+                    <div style="font-weight:800;font-size:14px;margin-bottom:16px;">Configurações de horários</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+                      <div style="display:flex;gap:10px;align-items:flex-start;">
+                        <span style="font-size:18px;color:#a855f7;">📅</span>
+                        <div>
+                          <div style="font-weight:800;font-size:13px;">Agendamentos simultâneos</div>
+                          <div style="font-size:11px;color:var(--text2);margin-top:2px;">Limite de agendamento no mesmo horário</div>
+                        </div>
+                      </div>
+                      <select class="input-field" style="min-width:130px;font-size:12px;">
+                        <option>Não permitir</option><option>1</option><option>2</option><option>3</option><option>Ilimitado</option>
+                      </select>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+                      <div style="display:flex;gap:10px;align-items:flex-start;">
+                        <span style="font-size:18px;color:#a855f7;">🔄</span>
+                        <div>
+                          <div style="font-weight:800;font-size:13px;">Sempre aberto</div>
+                          <div style="font-size:11px;color:var(--text2);margin-top:2px;">Permite agendamento em qualquer horário.</div>
+                        </div>
+                      </div>
+                      <label class="toggle"><input type="checkbox" id="agenda-sempre-aberto" onchange="toggleSempreAberto(this.checked)"><span class="toggle-slider"></span></label>
+                    </div>
+
+                    <div id="agenda-horarios-section">
+                      <div style="font-size:12px;font-weight:800;color:var(--text2);margin:16px 0 10px;text-transform:uppercase;letter-spacing:.5px;">Horários de atendimento:</div>
+                      <!-- Dias da semana -->
+                      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+                        ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map((d,i) => `
+                          <button class="dia-btn" data-dia="${i}" onclick="toggleDia(this)"
+                            style="width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-size:11px;font-weight:900;font-family:'Nunito';transition:all .15s;${[1,2,3,4,5].includes(i)?'background:#a855f7;color:#fff;':'background:var(--bg3);color:var(--text2);'}">${d}</button>`).join('')}
+                      </div>
+                      <!-- Linhas de horário -->
+                      <div id="agenda-linhas-horario" style="display:flex;flex-direction:column;gap:8px;">
+                        ${[
+                          {nome:'Terça-feira'}, {nome:'Quarta-feira'}, {nome:'Quinta-feira'},
+                          {nome:'Sexta-feira'}, {nome:'Sábado'}
+                        ].map(dia => `
+                          <div style="display:flex;align-items:center;gap:10px;">
+                            <span style="font-size:12px;font-weight:700;min-width:80px;color:var(--text2);">${dia.nome}</span>
+                            <input type="time" value="08:00" class="input-field" style="width:80px;padding:6px 8px;font-size:12px;">
+                            <span style="color:var(--text2);">—</span>
+                            <input type="time" value="18:00" class="input-field" style="width:80px;padding:6px 8px;font-size:12px;">
+                            <button onclick="adicionarIntervalo(this)" style="width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">+</button>
+                          </div>`).join('')}
+                      </div>
+                    </div>
+
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                      <button style="background:none;border:none;color:var(--red);font-family:'Nunito';font-size:13px;font-weight:700;cursor:pointer;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">🔗 Remover agenda</button>
+                      <button onclick="toast('✅ Horários salvos!','success')" style="background:#00b4a0;border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:9px 24px;border-radius:8px;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Salvar</button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 1: Configurações -->
+            <div id="gcal-panel-1" class="gcal-panel" style="display:none;">
+              ${[
+                { icon:'🎥', title:'Integração com Google Meet', desc:'Gerar link do meet ao fazer o agendamento', def:false },
+                { icon:'📋', title:'Consulta de horários', desc:'Agente pode consultar horários disponíveis', def:true },
+                { icon:'⏰', title:'Restrição de horários', desc:'Permitir apenas horários cheios, ex: 09:00', def:false },
+              ].map(item => `
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);">
+                  <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <span style="font-size:20px;margin-top:2px;">${item.icon}</span>
+                    <div>
+                      <div style="font-weight:800;font-size:13px;">${item.title}</div>
+                      <div style="font-size:11px;color:var(--text2);margin-top:2px;">${item.desc}</div>
+                    </div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:4px;">
+                    <input type="checkbox" ${item.def?'checked':''}>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>`).join('')}
+              <div style="margin-top:20px;">
+                <div style="font-size:13px;font-weight:800;margin-bottom:12px;">Modo de distribuição</div>
+                <div style="font-size:11px;color:var(--text2);margin-bottom:12px;">Como os agendamentos serão divididos</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div id="gcal-dist-seq" onclick="selecionarDistribuicao('seq')" style="border:2px solid #a855f7;border-radius:10px;padding:14px;cursor:pointer;background:rgba(168,85,247,.08);">
+                    <div style="font-size:13px;font-weight:800;color:#a855f7;margin-bottom:6px;">Distribuir sequencial</div>
+                    <div style="font-size:11px;color:var(--text2);line-height:1.5;">Os agendamentos são distribuídos entre as agendas alternando entre elas de maneira sequencial.</div>
+                    <div style="margin-top:8px;text-align:right;"><span style="background:#a855f7;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">✓</span></div>
+                  </div>
+                  <div id="gcal-dist-int" onclick="selecionarDistribuicao('int')" style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:border-color .15s;" onmouseover="this.style.borderColor='rgba(168,85,247,.4)'" onmouseout="if(!this.classList.contains('sel'))this.style.borderColor='var(--border)'">
+                    <div style="font-size:13px;font-weight:800;margin-bottom:6px;">Distribuição Inteligente</div>
+                    <div style="font-size:11px;color:var(--text2);line-height:1.5;">Seleciona automaticamente a agenda mais apropriada de acordo com a conversa com cliente.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Campos Customizados -->
+            <div id="gcal-panel-2" class="gcal-panel" style="display:none;">
+              <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">Crie campos que o agente deve coletar</div>
+              <button onclick="adicionarCampoCustomizado()" style="width:100%;border:2px dashed #a855f7;background:transparent;color:#a855f7;font-family:'Nunito';font-size:13px;font-weight:800;padding:14px;border-radius:10px;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(168,85,247,.06)'" onmouseout="this.style.background='transparent'">+ Adicionar campo customizado</button>
+              <div id="gcal-campos-custom" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;"></div>
+            </div>
+
+            <!-- Tab 3: Campos -->
+            <div id="gcal-panel-3" class="gcal-panel" style="display:none;">
+              <div style="font-size:13px;font-weight:800;margin-bottom:16px;">Campos para agendamento</div>
+              ${[
+                { icon:'👤', title:'Nome', desc:'Solicitar nome do usuário', def:false },
+                { icon:'🏢', title:'Empresa', desc:'Solicitar nome da empresa', def:true },
+                { icon:'⏱️', title:'Duração do agendamento', desc:'Quanto tempo vai durar', def:null, dropdown:['Variável','30 min','1 hora','2 horas'] },
+                { icon:'📋', title:'Enviar um resumo', desc:'Anexar um resumo da conversa no agendamento', def:false },
+                { icon:'📧', title:'E-mail do cliente', desc:'Solicitar e-mail para enviar convite na agenda', def:true },
+                { icon:'📝', title:'Assunto', desc:'Solicitar assunto', def:true },
+                { icon:'✏️', title:'Descrição personalizada', desc:'Fazer uma descrição personalizada', def:false },
+              ].map(f => `
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--border);">
+                  <div style="display:flex;gap:12px;align-items:flex-start;">
+                    <span style="font-size:18px;margin-top:2px;">${f.icon}</span>
+                    <div>
+                      <div style="font-weight:800;font-size:13px;">${f.title}</div>
+                      <div style="font-size:11px;color:var(--text2);margin-top:2px;">${f.desc}</div>
+                    </div>
+                  </div>
+                  ${f.dropdown
+                    ? `<select class="input-field" style="min-width:110px;padding:6px 10px;font-size:12px;">${f.dropdown.map(o=>`<option>${o}</option>`).join('')}</select>`
+                    : `<label class="toggle" style="flex-shrink:0;margin-top:4px;"><input type="checkbox" ${f.def?'checked':''}><span class="toggle-slider"></span></label>`
+                  }
+                </div>`).join('')}
+            </div>
+
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+            <button onclick="toast('✅ Google Calendar salvo!','success');fecharModal('gcalendar')" style="background:#00b4a0;border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:10px 28px;border-radius:8px;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MODAL: PLUG CHAT ══ -->
+    <div id="modal-plugchat" class="modal-bg" onclick="if(event.target===this)fecharModal('plugchat')">
+      <div class="modal" style="width:460px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="font-weight:900;font-size:18px;">Ativar integração</div>
+          <button onclick="fecharModal('plugchat')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+        </div>
+        <div class="form-group">
+          <label style="font-size:13px;font-weight:800;color:var(--text);">Token de integração:</label>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Informe abaixo o token de integração disponível em seu plug chat.</div>
+          <textarea class="input-field" id="plugchat-token" rows="4" placeholder="Token" style="width:100%;resize:none;"></textarea>
+        </div>
+        <button onclick="confirmarPlugChat()" style="width:100%;margin-top:8px;background:#00b4a0;border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:14px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">ATIVAR INTEGRAÇÃO</button>
+      </div>
+    </div>
+
+    <!-- ══ MODAL: E-VENDI ══ -->
+    <div id="modal-evendi" class="modal-bg" onclick="if(event.target===this)fecharModal('evendi')">
+      <div class="modal" style="width:460px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="font-weight:900;font-size:18px;">Ativar integração</div>
+          <button onclick="fecharModal('evendi')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+        </div>
+        <div style="background:rgba(155,89,182,.12);border:1px solid rgba(155,89,182,.25);border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+          <div style="font-size:13px;color:#c084fc;line-height:1.6;">E-vendi é uma plataforma de e-commerce nativa do ERP Kigi, saiba mais em <a href="https://kigi.com.br" target="_blank" style="color:#c084fc;font-weight:800;">https://kigi.com.br</a>.</div>
+        </div>
+        <div class="form-group">
+          <label style="font-size:13px;font-weight:800;color:var(--text);">URL da sua loja:</label>
+          <input class="input-field" id="evendi-url" placeholder="sualoja.e-vendi.site" style="width:100%;margin-top:8px;">
+        </div>
+        <button onclick="confirmarEvendi()" style="width:100%;margin-top:12px;background:rgba(155,89,182,.5);border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:14px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:all .15s;" id="evendi-btn"
+          onmouseover="this.style.background='#a855f7'" onmouseout="this.style.background='rgba(155,89,182,.5)'">ATIVAR INTEGRAÇÃO</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ ABA: INTENÇÕES ══ -->
+  <div class="ai-tab-panel" id="panel-intencoes">
+    <div style="max-width:900px;margin:0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;margin-bottom:2px;">🎯 Intenções</div>
+          <div style="font-size:13px;color:var(--text2);">Intenções são comandos personalizados que acionam ações específicas em serviços externos.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="importarIntencoes()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'Nunito';font-size:12px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">📥 Importar</button>
+          <button onclick="cadastrarIntencao()" class="btn btn-gold btn-sm">+ Nova Intenção</button>
+        </div>
+      </div>
+
+      <div id="intencoes-lista">
+        <!-- Estado vazio -->
+        <div id="intencoes-empty" style="text-align:center;padding:60px 20px;">
+          <div style="width:100px;height:100px;border-radius:50%;background:rgba(155,89,182,.15);border:2px solid rgba(155,89,182,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:40px;">🎯</div>
+          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Criar uma intenção</div>
+          <div style="font-size:13px;color:var(--text2);max-width:340px;margin:0 auto 20px;line-height:1.6;">Intenções são comandos personalizados que acionam ações específicas em serviços externos, como <strong>"solicitar segunda via de um boleto"</strong>.</div>
+          <button onclick="cadastrarIntencao()" class="btn btn-gold">CADASTRAR PRIMEIRA INTENÇÃO</button>
+          <div style="margin-top:16px;color:var(--text2);font-size:13px;">ou</div>
+          <button onclick="importarIntencoes()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'Nunito';font-size:12px;font-weight:700;padding:7px 18px;border-radius:20px;cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:6px;">📥 Importar</button>
+        </div>
+      </div>
+
+      <!-- Modal de criação de intenção (oculto) -->
+      <div id="modal-intencao" class="modal-bg" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="modal">
+          <div class="modal-title">🎯 Nova Intenção</div>
+          <div class="form-group">
+            <label>Nome da Intenção</label>
+            <input class="input-field" id="int-nome" placeholder='Ex: "Solicitar segunda via de boleto"'>
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea class="input-field" id="int-desc" rows="3" placeholder="Descreva quando essa intenção deve ser acionada..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>URL do Webhook (POST)</label>
+            <input class="input-field" id="int-webhook" placeholder="https://seu-sistema.com/webhook/intencao">
+          </div>
+          <div class="form-group">
+            <label>Palavras-chave (separadas por vírgula)</label>
+            <input class="input-field" id="int-keywords" placeholder="boleto, segunda via, 2ª via">
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="document.getElementById('modal-intencao').classList.remove('open')">Cancelar</button>
+            <button class="btn btn-gold" onclick="salvarIntencao()">💾 Cadastrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ABA: TREINAMENTOS ══ -->
+  <div class="ai-tab-panel" id="panel-treinamentos">
+    <div style="max-width:900px;margin:0 auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;">📚 Treinamentos</div>
+        <input class="input-field" id="treino-busca" placeholder="🔍 Buscar treinamento..." style="min-width:240px;" oninput="filtrarTreinamentos(this.value)">
+      </div>
+
+      <!-- Sub-tabs de treinamento -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;">
+        ${['Texto','Website','Vídeo','Documento'].map((t,i) => `
+          <button class="treino-tab${i===0?' treino-tab-active':''}" data-tab="${t.toLowerCase()}" onclick="switchTreinoTab('${t.toLowerCase()}')"
+            style="padding:10px 20px;background:none;border:none;${i===0?'border-bottom:2px solid var(--gold);color:var(--gold)':'border-bottom:2px solid transparent;color:var(--text2)'};font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;transition:all .2s;">${t}</button>`).join('')}
+      </div>
+
+      <!-- Formulário Texto -->
+      <div id="treino-panel-texto" class="treino-panel" style="display:block;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-weight:800;font-size:13px;">
+            <span>📝</span> Novo treinamento via texto
+            <span style="margin-left:auto;font-size:11px;color:var(--text2);" id="treino-texto-count">0/1028</span>
+          </div>
+          <textarea id="treino-texto-input" class="input-field" rows="3" style="width:100%;resize:none;" maxlength="1028"
+            placeholder="Escreva uma afirmação e tecle enter para cadastrar..."
+            oninput="document.getElementById('treino-texto-count').textContent=this.value.length+'/1028'"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cadastrarTreinoTexto();}"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+            <div style="display:flex;gap:8px;">
+              <button title="Adicionar imagem" onclick="toast('📸 Upload de imagem em breve!','warning')" style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">🖼️</button>
+              <button title="Adicionar vídeo"  onclick="toast('🎥 Upload de vídeo em breve!','warning')"  style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">📹</button>
+              <button title="Adicionar áudio"  onclick="toast('🎵 Upload de áudio em breve!','warning')"  style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">🎵</button>
+              <button title="Adicionar doc"    onclick="toast('📄 Upload de doc em breve!','warning')"    style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">📄</button>
+            </div>
+            <button onclick="cadastrarTreinoTexto()" class="btn btn-gold btn-sm">Cadastrar</button>
+          </div>
+        </div>
+        <div id="treino-texto-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <!-- Formulário Website -->
+      <div id="treino-panel-website" class="treino-panel" style="display:none;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-weight:800;font-size:13px;">
+            <span>🔗</span> Novo treinamento via website ou sitemap
+            <span style="margin-left:auto;font-size:11px;color:var(--text2);">0/1028</span>
+          </div>
+          <input id="treino-website-input" class="input-field" style="width:100%;" placeholder="Cole a URL de um website ou sitemap">
+          <div style="display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);">
+              Intervalo de atualização:
+              <select class="input-field" id="treino-web-intervalo"><option>Nunca</option><option>Diário</option><option>Semanal</option><option>Mensal</option></select>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);">
+              Navegar em sub páginas:
+              <select class="input-field" id="treino-web-subpages"><option>Não</option><option>Sim</option></select>
+            </div>
+            <button onclick="cadastrarTreinoWebsite()" class="btn btn-gold btn-sm" style="margin-left:auto;">Cadastrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulário Vídeo -->
+      <div id="treino-panel-vídeo" class="treino-panel" style="display:none;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-weight:800;font-size:13px;">
+            <span>📹</span> Novo treinamento via vídeo
+            <span style="margin-left:auto;font-size:11px;color:var(--text2);">0/1028</span>
+          </div>
+          <input id="treino-video-input" class="input-field" style="width:100%;" placeholder="Cole a URL de um vídeo do youtube">
+          <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+            <button onclick="cadastrarTreinoVideo()" class="btn btn-gold btn-sm">Cadastrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulário Documento -->
+      <div id="treino-panel-documento" class="treino-panel" style="display:none;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-weight:800;font-size:13px;">
+            <span>📄</span> Novo treinamento via documento
+          </div>
+          <div onclick="document.getElementById('treino-doc-file').click()" style="border:2px dashed var(--border);border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--bg3);"
+            onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:28px;margin-bottom:8px;">⬆️</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Selecione o arquivo para upload</div>
+            <div style="font-size:11px;color:var(--text2);">Tipos suportados: .pdf, .doc, .docx, .txt (max. 100MB)</div>
+            <input type="file" id="treino-doc-file" accept=".pdf,.doc,.docx,.txt" style="display:none;" onchange="cadastrarTreinoDoc(this)">
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+            <button onclick="document.getElementById('treino-doc-file').click()" class="btn btn-gold btn-sm">Cadastrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de treinamentos -->
+      <div id="treino-lista-geral" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+        <div style="display:flex;gap:8px;" id="treino-paginacao"></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);">
+          Itens:
+          <select class="input-field" style="padding:4px 8px;font-size:12px;" onchange="treinoPageSize=+this.value;renderTreinoLista()">
+            <option>7</option><option>15</option><option>30</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
   `;
 
   renderAgenteStatus();
   renderMetricas();
+  // Carregar treinamentos salvos
+  setTimeout(() => { renderTreinoLista(); }, 100);
   // Abrir aba de intervenção por padrão para Admin (não super admin)
   if (SESSION.is_admin && !SESSION.is_super_admin) {
     setTimeout(() => { switchAgenteAba('intervencao'); carregarConversasWpp(); }, 150);
@@ -4137,15 +4863,435 @@ function renderAgente() {
 // ── ABAS ─────────────────────────────────────────────────────
 function switchAgenteAba(aba) {
   agenteAbaAtiva = aba;
-  const abas = SESSION.is_super_admin
-    ? ['config','whatsapp','chat']
-    : ['config','whatsapp','intervencao'];
+  const abas = ['config','whatsapp','preferencias','integracoes','intencoes','treinamentos',
+    ...(SESSION.is_super_admin ? ['chat'] : []),
+    ...(!SESSION.is_super_admin && SESSION.is_admin ? ['intervencao'] : [])];
   abas.forEach(a => {
     document.getElementById('tab-'+a)?.classList.toggle('active', a===aba);
     document.getElementById('panel-'+a)?.classList.toggle('active', a===aba);
   });
   if (aba === 'intervencao') setTimeout(carregarConversasWpp, 100);
   if (aba === 'whatsapp')   setTimeout(iniciarPainelWpp, 100);
+  if (aba === 'treinamentos') setTimeout(renderTreinoLista, 100);
+}
+
+// ══ PREFERÊNCIAS ══
+function switchPrefTab(sub) {
+  ['conversa','inatividade','webhooks','transferencia'].forEach(t => {
+    const btn = document.getElementById('pref-tab-'+t);
+    const pan = document.getElementById('pref-panel-'+t);
+    const isActive = t === sub;
+    if (btn) {
+      btn.style.borderBottomColor = isActive ? 'var(--gold)' : 'transparent';
+      btn.style.color = isActive ? 'var(--gold)' : 'var(--text2)';
+    }
+    if (pan) pan.style.display = isActive ? 'block' : 'none';
+  });
+}
+
+function salvarPreferencias() {
+  const prefs = {
+    transferir:     document.getElementById('pref-transferir')?.checked,
+    resumo:         document.getElementById('pref-resumo')?.checked,
+    emojis:         document.getElementById('pref-emojis')?.checked,
+    assinar:        document.getElementById('pref-assinar')?.checked,
+    restringir:     document.getElementById('pref-restringir')?.checked,
+    dividir:        document.getElementById('pref-dividir')?.checked,
+    digitando:      document.getElementById('pref-digitando')?.checked,
+    lembrete:       document.getElementById('pref-lembrete')?.checked,
+    busca:          document.getElementById('pref-busca')?.checked,
+    timezone:       document.getElementById('pref-timezone')?.value,
+    tempoResposta:  document.getElementById('pref-tempo-resposta')?.value,
+    limiteInt:      document.getElementById('pref-limite-int')?.value,
+  };
+  const slug = SESSION?.slug || 'default';
+  localStorage.setItem('burgerops_prefs_'+slug, JSON.stringify(prefs));
+  toast('✅ Preferências salvas!', 'success');
+}
+
+function adicionarAcaoAnterior() {
+  const cont = document.getElementById('inatividade-acoes');
+  if (!cont) return;
+  const div = document.createElement('div');
+  div.className = 'inatividade-acao-row';
+  div.style.cssText = 'display:flex;align-items:center;gap:12px;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;';
+  div.innerHTML = `<span style="font-size:18px;">⏱️</span>
+    <span style="font-size:13px;color:var(--text2);">Se não responder em</span>
+    <select class="input-field" style="min-width:140px;"><option>5 minutos</option><option selected>10 minutos</option><option>30 minutos</option><option>1 hora</option></select>
+    <span style="font-size:13px;color:var(--text2);">o agente deve</span>
+    <select class="input-field" style="min-width:200px;"><option>Finalizar atendimento.</option><option>Enviar mensagem de aviso.</option><option>Transferir para humano.</option></select>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;margin-left:auto;" title="Remover">🗑️</button>`;
+  cont.appendChild(div);
+}
+
+function adicionarEvento() {
+  const cont = document.getElementById('webhooks-lista');
+  if (!cont) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:center;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;';
+  div.innerHTML = `
+    <select class="input-field"><option>Atendimento iniciado</option><option>Atendimento finalizado</option><option>Mensagem recebida</option><option>Transferido para humano</option></select>
+    <input class="input-field" placeholder="https://seu-sistema.com/webhook/evento">
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;" title="Remover">🗑️</button>`;
+  cont.appendChild(div);
+}
+
+function adicionarRegraTransferencia() {
+  const cont = document.getElementById('transferencia-lista');
+  if (!cont) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;';
+  div.innerHTML = `
+    <input class="input-field" placeholder="Condição (ex: cliente pede cancelamento)">
+    <input class="input-field" placeholder="Transferir para (fila/setor)">
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;" title="Remover">🗑️</button>`;
+  cont.appendChild(div);
+}
+
+// ══ INTEGRAÇÕES ══
+// ══ INTEGRAÇÕES — modais ══
+function fecharModal(id) {
+  document.getElementById('modal-'+id)?.classList.remove('open');
+}
+
+function abrirModalGoogleCalendar() {
+  const oauthModal = document.getElementById('modal-google-oauth');
+  if (oauthModal) {
+    oauthModal.classList.add('open');
+    const inner = document.getElementById('modal-google-oauth-inner');
+    if (inner) setTimeout(() => inner.style.transform = 'scale(1)', 10);
+  }
+}
+function selecionarContaGoogle(email, nome) {
+  fecharModal('google-oauth');
+  setTimeout(() => {
+    document.getElementById('modal-gcalendar')?.classList.add('open');
+    const inner = document.getElementById('modal-gcalendar-inner');
+    if (inner) setTimeout(() => inner.style.transform = 'scale(1)', 10);
+    toast('Conta ' + email + ' conectada!', 'success');
+  }, 300);
+}
+function adicionarOutraConta() {
+  // Esconde lista de contas, mostra painel de digitar e-mail
+  const contas = document.getElementById('google-oauth-accounts');
+  const outra  = document.getElementById('google-oauth-outra');
+  if (contas) contas.style.display = 'none';
+  if (outra)  { outra.style.display = 'flex'; }
+  setTimeout(() => document.getElementById('google-outra-email')?.focus(), 50);
+}
+
+function voltarParaContas() {
+  const contas = document.getElementById('google-oauth-accounts');
+  const outra  = document.getElementById('google-oauth-outra');
+  if (contas) contas.style.display = 'flex';
+  if (outra)  outra.style.display  = 'none';
+}
+
+function confirmarOutraConta() {
+  const email = document.getElementById('google-outra-email')?.value.trim();
+  if (!email || !email.includes('@')) {
+    document.getElementById('google-outra-email').style.borderColor = '#ea4335';
+    setTimeout(() => { document.getElementById('google-outra-email').style.borderColor = '#5f6368'; }, 1500);
+    return;
+  }
+  const nome = email.split('@')[0];
+  selecionarContaGoogle(email, nome);
+}
+function abrirModalElevenLabs() {
+  document.getElementById('modal-elevenlabs')?.classList.add('open');
+}
+function confirmarElevenLabs() {
+  const token = document.getElementById('el-token')?.value.trim();
+  if (!token) { toast('Informe o token ElevenLabs!', 'error'); return; }
+  toast('✅ ElevenLabs ativado com sucesso!', 'success');
+  fecharModal('elevenlabs');
+}
+
+function abrirConfigAgenda() {
+  // Esconde lista, mostra config
+  const lista  = document.getElementById('gcal-panel-0');
+  const config = document.getElementById('gcal-panel-agenda');
+  if (lista)  lista.style.display  = 'none';
+  if (config) config.style.display = 'block';
+  const t = document.getElementById('gcal-title');
+  if (t) t.textContent = 'Configurar agenda';
+  // Garante sub-aba Dados Gerais ativa
+  switchAgendaTab('dados');
+}
+
+function switchAgendaTab(aba) {
+  const dados    = document.getElementById('agenda-panel-dados');
+  const horarios = document.getElementById('agenda-panel-horarios');
+  const subDados = document.getElementById('gcal-sub-dados');
+  const subHor   = document.getElementById('gcal-sub-horarios');
+  if (dados)    dados.style.display    = aba === 'dados'    ? 'block' : 'none';
+  if (horarios) horarios.style.display = aba === 'horarios' ? 'block' : 'none';
+  if (subDados) {
+    subDados.style.background = aba === 'dados' ? 'rgba(155,89,182,.15)' : 'transparent';
+    subDados.style.color      = aba === 'dados' ? '#a855f7' : 'var(--text2)';
+  }
+  if (subHor) {
+    subHor.style.background = aba === 'horarios' ? 'rgba(155,89,182,.15)' : 'transparent';
+    subHor.style.color      = aba === 'horarios' ? '#a855f7' : 'var(--text2)';
+  }
+}
+
+function toggleDia(btn) {
+  const ativo = btn.style.background.includes('#a855f7') || btn.style.background.includes('168,85,247');
+  if (ativo) {
+    btn.style.background = 'var(--bg3)';
+    btn.style.color = 'var(--text2)';
+  } else {
+    btn.style.background = '#a855f7';
+    btn.style.color = '#fff';
+  }
+}
+
+function toggleSempreAberto(checked) {
+  const sec = document.getElementById('agenda-horarios-section');
+  if (sec) sec.style.opacity = checked ? '.35' : '1';
+  if (sec) sec.style.pointerEvents = checked ? 'none' : 'auto';
+}
+
+function adicionarIntervalo(btn) {
+  const row = btn.parentElement;
+  const clone = row.cloneNode(true);
+  // Remove o botão + do clone anterior, adiciona botão - e mantém +
+  const newBtn = clone.querySelector('button');
+  if (newBtn) {
+    newBtn.innerHTML = '−';
+    newBtn.onclick = function() { this.parentElement.remove(); };
+    newBtn.style.borderColor = 'var(--red)';
+    newBtn.style.color = 'var(--red)';
+  }
+  row.parentElement.insertBefore(clone, row.nextSibling);
+}
+function switchGcalTab(idx) {
+  document.querySelectorAll('.gcal-menu-item').forEach((el,i) => {
+    const active = i === idx;
+    el.style.background = active ? 'rgba(155,89,182,.15)' : 'transparent';
+    el.style.color = active ? '#a855f7' : 'var(--text2)';
+  });
+  document.querySelectorAll('.gcal-panel').forEach((p,i) => { p.style.display = i===idx ? 'block' : 'none'; });
+  const titles = ['Agendas conectadas','Configurações','Campos Customizados','Campos para agendamento'];
+  const t = document.getElementById('gcal-title'); if(t) t.textContent = titles[idx];
+}
+function selecionarDistribuicao(tipo) {
+  const seq = document.getElementById('gcal-dist-seq');
+  const intEl = document.getElementById('gcal-dist-int');
+  if (!seq || !intEl) return;
+  if (tipo === 'seq') {
+    seq.style.borderColor = '#a855f7'; seq.style.background = 'rgba(168,85,247,.08)';
+    intEl.style.borderColor = 'var(--border)'; intEl.style.background = 'transparent';
+  } else {
+    intEl.style.borderColor = '#a855f7'; intEl.style.background = 'rgba(168,85,247,.08)';
+    seq.style.borderColor = 'var(--border)'; seq.style.background = 'transparent';
+  }
+}
+function adicionarCampoCustomizado() {
+  const cont = document.getElementById('gcal-campos-custom');
+  if (!cont) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  div.innerHTML = '<input class="input-field" placeholder="Nome do campo" style="flex:1;"><select class="input-field" style="min-width:110px;"><option>Texto</option><option>Número</option><option>Data</option><option>Sim/Não</option></select><button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;">🗑️</button>';
+  cont.appendChild(div);
+}
+
+function abrirModalPlugChat() {
+  document.getElementById('modal-plugchat')?.classList.add('open');
+}
+function confirmarPlugChat() {
+  const token = document.getElementById('plugchat-token')?.value.trim();
+  if (!token) { toast('Informe o token do Plug Chat!', 'error'); return; }
+  toast('✅ Plug Chat ativado com sucesso!', 'success');
+  fecharModal('plugchat');
+}
+
+function abrirModalEvendi() {
+  document.getElementById('modal-evendi')?.classList.add('open');
+}
+function confirmarEvendi() {
+  const url = document.getElementById('evendi-url')?.value.trim();
+  if (!url) { toast('Informe a URL da sua loja!', 'error'); return; }
+  toast('✅ E-vendi ativado com sucesso!', 'success');
+  fecharModal('evendi');
+}
+// ══ INTENÇÕES ══
+let intencoesData = [];
+
+function cadastrarIntencao() {
+  document.getElementById('modal-intencao')?.classList.add('open');
+}
+
+function importarIntencoes() {
+  toast('📥 Importação de intenções em breve!', 'warning');
+}
+
+function salvarIntencao() {
+  const nome    = document.getElementById('int-nome')?.value.trim();
+  const desc    = document.getElementById('int-desc')?.value.trim();
+  const webhook = document.getElementById('int-webhook')?.value.trim();
+  const keys    = document.getElementById('int-keywords')?.value.trim();
+  if (!nome) { toast('Informe o nome da intenção!', 'error'); return; }
+  intencoesData.push({ id: Date.now(), nome, desc, webhook, keywords: keys, ativo: true });
+  document.getElementById('modal-intencao')?.classList.remove('open');
+  ['int-nome','int-desc','int-webhook','int-keywords'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderIntencoes();
+  toast('✅ Intenção cadastrada!', 'success');
+}
+
+function renderIntencoes() {
+  const empty = document.getElementById('intencoes-empty');
+  const lista = document.getElementById('intencoes-lista');
+  if (!lista) return;
+  if (intencoesData.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  lista.innerHTML = intencoesData.map(int => `
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;">
+      <span style="font-size:20px;">🎯</span>
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:14px;">${int.nome}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px;">${int.desc||'Sem descrição'}</div>
+        ${int.keywords ? `<div style="font-size:11px;color:var(--cyan);margin-top:4px;">🏷️ ${int.keywords}</div>` : ''}
+      </div>
+      <span class="badge ${int.ativo?'badge-green':'badge-gray'}">${int.ativo?'Ativo':'Inativo'}</span>
+      <button onclick="removerIntencao(${int.id})" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;" title="Remover">🗑️</button>
+    </div>`).join('');
+}
+
+function removerIntencao(id) {
+  intencoesData = intencoesData.filter(i => i.id !== id);
+  renderIntencoes();
+  toast('🗑️ Intenção removida.', 'success');
+}
+
+// ══ TREINAMENTOS ══
+let treinamentosData = [];
+let treinoPage = 1;
+let treinoPageSize = 7;
+let treinoBusca = '';
+
+function switchTreinoTab(tab) {
+  document.querySelectorAll('.treino-tab').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.style.borderBottomColor = isActive ? 'var(--gold)' : 'transparent';
+    btn.style.color = isActive ? 'var(--gold)' : 'var(--text2)';
+  });
+  document.querySelectorAll('.treino-panel').forEach(pan => { pan.style.display = 'none'; });
+  const panel = document.getElementById('treino-panel-'+tab);
+  if (panel) panel.style.display = 'block';
+}
+
+function cadastrarTreinoTexto() {
+  const inp = document.getElementById('treino-texto-input');
+  const val = inp?.value.trim();
+  if (!val) return;
+  treinamentosData.unshift({ id: Date.now(), tipo: 'texto', conteudo: val, status: 'Treinado', criadoEm: new Date() });
+  inp.value = '';
+  document.getElementById('treino-texto-count').textContent = '0/1028';
+  salvarTreinamentosLocal();
+  renderTreinoLista();
+  toast('✅ Treinamento cadastrado!', 'success');
+}
+
+function cadastrarTreinoWebsite() {
+  const inp = document.getElementById('treino-website-input');
+  const val = inp?.value.trim();
+  if (!val) { toast('Cole a URL do website!', 'error'); return; }
+  treinamentosData.unshift({ id: Date.now(), tipo: 'website', conteudo: val, status: 'Treinado', criadoEm: new Date() });
+  inp.value = '';
+  salvarTreinamentosLocal();
+  renderTreinoLista();
+  toast('✅ Website adicionado ao treinamento!', 'success');
+}
+
+function cadastrarTreinoVideo() {
+  const inp = document.getElementById('treino-video-input');
+  const val = inp?.value.trim();
+  if (!val) { toast('Cole a URL do vídeo!', 'error'); return; }
+  treinamentosData.unshift({ id: Date.now(), tipo: 'video', conteudo: val, status: 'Treinado', criadoEm: new Date() });
+  inp.value = '';
+  salvarTreinamentosLocal();
+  renderTreinoLista();
+  toast('✅ Vídeo adicionado ao treinamento!', 'success');
+}
+
+function cadastrarTreinoDoc(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  treinamentosData.unshift({ id: Date.now(), tipo: 'documento', conteudo: file.name, status: 'Treinado', criadoEm: new Date() });
+  salvarTreinamentosLocal();
+  renderTreinoLista();
+  toast(`✅ Documento "${file.name}" adicionado!`, 'success');
+}
+
+function salvarTreinamentosLocal() {
+  const slug = SESSION?.slug || 'default';
+  localStorage.setItem('burgerops_treinos_'+slug, JSON.stringify(treinamentosData));
+}
+
+function carregarTreinamentosLocal() {
+  const slug = SESSION?.slug || 'default';
+  const s = localStorage.getItem('burgerops_treinos_'+slug);
+  if (s) { try { treinamentosData = JSON.parse(s); } catch(e){} }
+}
+
+function filtrarTreinamentos(q) {
+  treinoBusca = q.toLowerCase();
+  treinoPage = 1;
+  renderTreinoLista();
+}
+
+function renderTreinoLista() {
+  carregarTreinamentosLocal();
+  const cont = document.getElementById('treino-lista-geral');
+  const pag  = document.getElementById('treino-paginacao');
+  if (!cont) return;
+
+  const tipoIcone = { texto:'📝', website:'🔗', video:'📹', documento:'📄' };
+  const filtered  = treinoBusca
+    ? treinamentosData.filter(t => t.conteudo.toLowerCase().includes(treinoBusca))
+    : treinamentosData;
+  const total = filtered.length;
+  const pages = Math.ceil(total / treinoPageSize) || 1;
+  if (treinoPage > pages) treinoPage = pages;
+  const slice = filtered.slice((treinoPage-1)*treinoPageSize, treinoPage*treinoPageSize);
+
+  if (slice.length === 0) {
+    cont.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text2);font-size:13px;">Nenhum treinamento cadastrado ainda.</div>';
+  } else {
+    cont.innerHTML = slice.map(t => `
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;">
+        <span style="font-size:20px;">${tipoIcone[t.tipo]||'📝'}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.conteudo}</div>
+        </div>
+        <span class="badge badge-green" style="font-size:10px;">${t.status}</span>
+        <button onclick="removerTreino(${t.id})" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;" title="Remover">⋮</button>
+      </div>`).join('');
+  }
+
+  // Paginação
+  if (pag) {
+    let btns = '';
+    for (let i=1;i<=pages;i++) {
+      btns += `<button onclick="treinoPage=${i};renderTreinoLista()" style="width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;font-size:13px;font-weight:800;font-family:'Nunito';${i===treinoPage?'background:var(--gold);color:#000':'background:var(--bg3);color:var(--text2)'};">${i}</button>`;
+    }
+    if (pages > 1) btns += `<button onclick="if(treinoPage<${pages}){treinoPage++;renderTreinoLista();}" style="background:var(--bg3);border:none;color:var(--text2);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;">»</button>`;
+    pag.innerHTML = btns;
+  }
+}
+
+function removerTreino(id) {
+  treinamentosData = treinamentosData.filter(t => t.id !== id);
+  salvarTreinamentosLocal();
+  renderTreinoLista();
+  toast('🗑️ Treinamento removido.', 'success');
 }
 
 // ── INTERVENÇÃO HUMANA — estado global ───────────────────────
@@ -4426,9 +5572,65 @@ async function carregarMsgsConversa(numero) {
   el.scrollTop = el.scrollHeight;
 }
 
+// ── SIMULAÇÃO DE "DIGITANDO..." NO WHATSAPP ──────────────────
+async function enviarPresenceDigitando(numero, duracaoMs = 2000) {
+  const prefs = (() => {
+    try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+(SESSION?.slug||'default'))||'{}'); } catch(e){ return {}; }
+  })();
+  if (prefs.digitando === false) return; // desativado nas preferências
+
+  const inst = wppCfg.instancia || 'default';
+  const prov  = wppCfg.provedor;
+  if (!wppCfg.url || !wppCfg.token) return;
+
+  try {
+    if (prov === 'evolution') {
+      // Evolution: sendPresence composing → depois paused
+      await fetch(`${wppCfg.url}/chat/sendPresence/${inst}`, {
+        method: 'POST', headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: numero, options: { presence: 'composing', delay: duracaoMs } })
+      });
+    } else if (prov === 'waha') {
+      const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+      const jid = numero.includes('@') ? numero : `${numero}@c.us`;
+      await fetch(`${baseUrl}/api/startTyping`, {
+        method: 'POST', headers: { 'X-Api-Key': wppCfg.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: inst, chatId: jid })
+      });
+      setTimeout(() => {
+        fetch(`${baseUrl}/api/stopTyping`, {
+          method: 'POST', headers: { 'X-Api-Key': wppCfg.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session: inst, chatId: jid })
+        }).catch(()=>{});
+      }, duracaoMs);
+    } else if (prov === 'wppconnect') {
+      await fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/chat-state/${numero}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatState: 'typing' })
+      });
+      setTimeout(() => {
+        fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/chat-state/${numero}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatState: 'paused' })
+        }).catch(()=>{});
+      }, duracaoMs);
+    }
+    // Z-API e Twilio não possuem endpoint de presença nativo — ignorado silenciosamente
+  } catch(e) {
+    // falha silenciosa: não interrompe o fluxo
+  }
+  // Aguarda a duração do "digitando" antes de enviar a mensagem
+  await new Promise(r => setTimeout(r, duracaoMs));
+}
+
 // ── ENVIO MULTI-PROVEDOR ──────────────────────────────────────
 async function enviarMensagemWpp(numero, texto) {
   if (!wppCfg.url || !wppCfg.token) throw new Error('Configure a API WhatsApp primeiro.');
+
+  // Calcula duração proporcional ao tamanho da mensagem (mín 1s, máx 4s)
+  const duracaoDigitando = Math.min(4000, Math.max(1000, texto.length * 30));
+  await enviarPresenceDigitando(numero, duracaoDigitando);
+
   const inst = wppCfg.instancia || 'default';
   const prov  = wppCfg.provedor;
 
