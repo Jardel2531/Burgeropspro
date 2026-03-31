@@ -523,6 +523,7 @@ select.ai-input { cursor: pointer; }
 .conn-status.err  { background: rgba(230,57,70,.1);  color: var(--red);   border: 1px solid rgba(230,57,70,.3); }
 .conn-status.wait { background: rgba(245,166,35,.1); color: var(--gold);  border: 1px solid rgba(245,166,35,.3); }
 .provedor-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+@media(max-width:700px) { .provedor-grid { grid-template-columns: repeat(2,1fr); } }
 .provedor-card { background: var(--bg3); border: 2px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; transition: all .15s; }
 .provedor-card:hover { border-color: rgba(245,166,35,.4); }
 .provedor-card.selected { border-color: var(--gold); background: rgba(245,166,35,.08); }
@@ -623,7 +624,7 @@ select.ai-input { cursor: pointer; }
 .conv-badge.pend { background: rgba(245,166,35,.15); color: var(--gold); }
 
 @media(max-width:900px) { .wpp-layout { grid-template-columns: 1fr; } }
-@media(max-width:700px) { .provedor-grid { grid-template-columns: 1fr 1fr 1fr; } }
+/* provedor-grid responsive handled above */
 
 /* ── Spinners ── */
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
@@ -1461,27 +1462,41 @@ async function textToSpeechPTBR(texto, googleApiKey) {
   return new Blob([bytes], { type: 'audio/mpeg' });
 }
 
-// Enviar áudio MP3 via Evolution API
+// Enviar áudio via provedor configurado
 async function enviarAudioWhatsApp(numero, audioBlob) {
-  if (!wppCfg.url || !wppCfg.token || !wppCfg.instancia) return;
-  // Converter Blob → base64
+  if (!wppCfg.url || !wppCfg.token) return;
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64 = reader.result.split(',')[1];
+      const inst = wppCfg.instancia || 'default';
+      const prov = wppCfg.provedor;
       try {
-        const r = await fetch(`${wppCfg.url}/message/sendMedia/${wppCfg.instancia}`, {
-          method: 'POST',
-          headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            number: numero,
-            mediatype: 'audio',
-            mimetype: 'audio/mpeg',
-            media: base64,
-            fileName: 'resposta.mp3',
-            caption: ''
-          })
-        });
+        let r;
+        if (prov === 'evolution') {
+          r = await fetch(`${wppCfg.url}/message/sendMedia/${inst}`, {
+            method: 'POST',
+            headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ number: numero, mediatype: 'audio', mimetype: 'audio/mpeg', media: base64, fileName: 'resposta.mp3', caption: '' })
+          });
+        } else if (prov === 'waha') {
+          const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+          const jid = numero.includes('@') ? numero : `${numero}@c.us`;
+          r = await fetch(`${baseUrl}/api/sendVoice`, {
+            method: 'POST',
+            headers: { 'X-Api-Key': wppCfg.token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session: inst, chatId: jid, file: { data: base64, mimetype: 'audio/mpeg', filename: 'resposta.mp3' } })
+          });
+        } else if (prov === 'wppconnect') {
+          r = await fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/send-voice`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: numero, base64Audio: `data:audio/mpeg;base64,${base64}` })
+          });
+        } else {
+          // Z-API / Twilio não suportam audio nativo neste fluxo
+          resolve(null); return;
+        }
         resolve(await r.json());
       } catch(e) { reject(e); }
     };
@@ -3787,20 +3802,30 @@ function renderAgente() {
           <div class="ai-card" style="margin-bottom:14px">
             <div class="ai-card-title">📲 Provedor WhatsApp</div>
             <div class="provedor-grid">
-              <div class="provedor-card ${wppCfg.provedor==='evolution'?'selected':''}" onclick="selecionarProvedor('evolution')">
+              <div class="provedor-card ${wppCfg.provedor==='evolution'?'selected':''}" data-prov="evolution" onclick="selecionarProvedor('evolution')">
                 <div class="prov-icon">⚡</div>
                 <div class="prov-name">Evolution API</div>
                 <span class="prov-tag free">Gratuito</span>
               </div>
-              <div class="provedor-card ${wppCfg.provedor==='zapi'?'selected':''}" onclick="selecionarProvedor('zapi')">
+              <div class="provedor-card ${wppCfg.provedor==='zapi'?'selected':''}" data-prov="zapi" onclick="selecionarProvedor('zapi')">
                 <div class="prov-icon">🔌</div>
                 <div class="prov-name">Z-API</div>
                 <span class="prov-tag paid">R$99/mês</span>
               </div>
-              <div class="provedor-card ${wppCfg.provedor==='twilio'?'selected':''}" onclick="selecionarProvedor('twilio')">
+              <div class="provedor-card ${wppCfg.provedor==='twilio'?'selected':''}" data-prov="twilio" onclick="selecionarProvedor('twilio')">
                 <div class="prov-icon">☁️</div>
                 <div class="prov-name">Twilio</div>
                 <span class="prov-tag paid">Pay-as-go</span>
+              </div>
+              <div class="provedor-card ${wppCfg.provedor==='waha'?'selected':''}" data-prov="waha" onclick="selecionarProvedor('waha')">
+                <div class="prov-icon">🐋</div>
+                <div class="prov-name">WAHA</div>
+                <span class="prov-tag free">Self-hosted</span>
+              </div>
+              <div class="provedor-card ${wppCfg.provedor==='wppconnect'?'selected':''}" data-prov="wppconnect" onclick="selecionarProvedor('wppconnect')">
+                <div class="prov-icon">🔗</div>
+                <div class="prov-name">WPPConnect</div>
+                <span class="prov-tag free">Open Source</span>
               </div>
             </div>
             <div id="wpp-fields">${renderWppFields()}</div>
@@ -3855,9 +3880,9 @@ function renderAgente() {
           <div class="ai-card">
             <div class="ai-card-title">📋 Fluxo de Integração n8n</div>
             <div style="display:flex;flex-direction:column;gap:8px">
-              <div class="wpp-step"><div class="wpp-step-num">1</div><div class="wpp-step-body"><div class="wpp-step-title">Instalar Evolution API</div><div class="wpp-step-desc">Rode no seu servidor ou use um VPS (R$25/mês). Acesse <span style="color:var(--gold)">doc.evolution-api.com</span> para o guia.</div></div></div>
-              <div class="wpp-step"><div class="wpp-step-num">2</div><div class="wpp-step-body"><div class="wpp-step-title">Conectar WhatsApp via QR Code</div><div class="wpp-step-desc">No painel da Evolution API, crie uma instância, gere o QR Code e escaneie com o WhatsApp do restaurante.</div></div></div>
-              <div class="wpp-step"><div class="wpp-step-num">3</div><div class="wpp-step-body"><div class="wpp-step-title">Criar fluxo no n8n</div><div class="wpp-step-desc">Webhook → Busca cardápio/pedidos no Supabase → Manda para Claude API → Responde pelo WhatsApp.</div></div></div>
+              <div class="wpp-step"><div class="wpp-step-num">1</div><div class="wpp-step-body"><div class="wpp-step-title">Escolha seu provedor WhatsApp</div><div class="wpp-step-desc">Selecione acima: <span style="color:var(--gold)">Evolution API</span> (gratuito, self-hosted), <span style="color:var(--gold)">WAHA</span> (Docker, open-source), <span style="color:var(--gold)">WPPConnect</span> (open-source), <span style="color:var(--gold)">Z-API</span> (R$99/mês) ou <span style="color:var(--gold)">Twilio</span> (pay-as-go).</div></div></div>
+              <div class="wpp-step"><div class="wpp-step-num">2</div><div class="wpp-step-body"><div class="wpp-step-title">Conectar WhatsApp via QR Code</div><div class="wpp-step-desc">Preencha os campos do provedor escolhido e clique em "Gerar QR Code". Escaneie com o WhatsApp do restaurante para autenticar a sessão.</div></div></div>
+              <div class="wpp-step"><div class="wpp-step-num">3</div><div class="wpp-step-body"><div class="wpp-step-title">Criar fluxo no n8n</div><div class="wpp-step-desc">Webhook → Busca cardápio/pedidos no Supabase → Manda para Claude API → Responde pelo WhatsApp via o provedor configurado.</div></div></div>
               <div class="wpp-step"><div class="wpp-step-num">4</div><div class="wpp-step-body"><div class="wpp-step-title">Ativar automação</div><div class="wpp-step-desc">Ative o toggle "Responder automaticamente" acima. O agente começará a responder 24h/dia.</div></div></div>
             </div>
             <button class="btn btn-outline btn-sm" onclick="baixarTemplateN8n()" style="margin-top:12px;width:100%">⬇️ Baixar template n8n pronto (JSON)</button>
@@ -4128,40 +4153,78 @@ let numeroAtivo     = null;
 let contatoAtivo    = {};
 let historicoHumano = [];
 
-// ── CARREGAR CONVERSAS (Evolution API ou banco) ───────────────
+// ── CARREGAR CONVERSAS (multi-provedor ou banco) ──────────────
 async function carregarConversasWpp() {
   const el = document.getElementById('wpp-conv-lista');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text2);font-size:13px;">⏳ Buscando conversas...</div>';
 
-  if (wppCfg.url && wppCfg.token && wppCfg.instancia) {
+  const inst = wppCfg.instancia || 'default';
+  const prov = wppCfg.provedor;
+
+  if (wppCfg.url && wppCfg.token) {
     try {
-      const r = await fetch(`${wppCfg.url}/chat/findChats/${wppCfg.instancia}`, {
-        headers: { 'apikey': wppCfg.token }
-      });
-      if (r.ok) {
-        const chats = await r.json();
-        const lista = Array.isArray(chats) ? chats : (chats.chats || chats.data || []);
-        if (lista.length > 0) {
-          renderListaConversas(lista.slice(0,30).map(c => ({
+      let lista = [];
+
+      if (prov === 'evolution') {
+        const r = await fetch(`${wppCfg.url}/chat/findChats/${inst}`, { headers: { 'apikey': wppCfg.token } });
+        if (r.ok) {
+          const chats = await r.json();
+          const raw = Array.isArray(chats) ? chats : (chats.chats || chats.data || []);
+          lista = raw.slice(0,30).map(c => ({
             numero:   c.id?.replace('@s.whatsapp.net','') || c.remoteJid?.replace('@s.whatsapp.net','') || '—',
             nome:     c.name || c.pushName || c.id?.split('@')[0] || 'Desconhecido',
             ultima:   c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || '…',
             tempo:    c.lastMessage?.messageTimestamp ? new Date(c.lastMessage.messageTimestamp*1000) : new Date(),
             naolidas: c.unreadCount || 0,
             iaAtiva:  true
-          })));
-          return;
+          }));
+        }
+
+      } else if (prov === 'waha') {
+        const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+        const r = await fetch(`${baseUrl}/api/sessions/${inst}/chats`, { headers: { 'X-Api-Key': wppCfg.token } });
+        if (r.ok) {
+          const chats = await r.json();
+          const raw = Array.isArray(chats) ? chats : (chats.data || []);
+          lista = raw.slice(0,30).map(c => ({
+            numero:   (c.id?.user || c.id?.toString() || c.id || '—').replace('@c.us','').replace('@s.whatsapp.net',''),
+            nome:     c.name || c.id?.user || 'Desconhecido',
+            ultima:   c.lastMessage?.body || '…',
+            tempo:    c.lastMessage?.timestamp ? new Date(c.lastMessage.timestamp*1000) : new Date(),
+            naolidas: c.unreadCount || 0,
+            iaAtiva:  true
+          }));
+        }
+
+      } else if (prov === 'wppconnect') {
+        const r = await fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/list-chats`);
+        if (r.ok) {
+          const data = await r.json();
+          const raw = data.response || data.data || [];
+          lista = raw.slice(0,30).map(c => ({
+            numero:   (c.id?.user || c.contact?.id?.user || c.id || '—').replace('@c.us',''),
+            nome:     c.name || c.contact?.pushname || 'Desconhecido',
+            ultima:   c.lastMessage?.body || '…',
+            tempo:    c.t ? new Date(c.t*1000) : new Date(),
+            naolidas: c.unreadCount || 0,
+            iaAtiva:  true
+          }));
         }
       }
-    } catch(e) { console.warn('Evolution chats:', e.message); }
+
+      if (lista.length > 0) {
+        renderListaConversas(lista);
+        return;
+      }
+    } catch(e) { console.warn('Chats API:', e.message); }
   }
 
   // Fallback: banco mensagens_webhook
   try {
     const rows = await sb.select('mensagens_webhook', `slug=eq.${getSlug()}&order=criado_em.desc&limit=100`);
     if (!rows || !rows.length) {
-      el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2);font-size:13px;"><div style="font-size:32px;margin-bottom:8px">📭</div>Nenhuma conversa.<br><small>Configure a Evolution API ou aguarde mensagens.</small></div>`;
+      el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text2);font-size:13px;"><div style="font-size:32px;margin-bottom:8px">📭</div>Nenhuma conversa.<br><small>Configure a API WhatsApp ou aguarde mensagens.</small></div>`;
       return;
     }
     const grupos = {};
@@ -4270,29 +4333,66 @@ async function carregarMsgsConversa(numero) {
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2);">⏳</div>';
   let msgs = [];
+  const inst = wppCfg.instancia || 'default';
+  const prov = wppCfg.provedor;
 
-  // Tentar Evolution API
-  if (wppCfg.url && wppCfg.token && wppCfg.instancia) {
+  if (wppCfg.url && wppCfg.token) {
     try {
-      const jid = numero.includes('@') ? numero : `${numero}@s.whatsapp.net`;
-      const r = await fetch(`${wppCfg.url}/chat/findMessages/${wppCfg.instancia}`, {
-        method: 'POST',
-        headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ where: { key: { remoteJid: jid } }, limit: 50 })
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const lista = Array.isArray(data) ? data : (data.messages?.records || data.data || []);
-        if (lista.length) {
-          msgs = lista.map(m => ({
-            de:     m.key?.fromMe ? (m.key?.participant ? 'bot' : 'humano') : 'cliente',
-            texto:  m.message?.conversation || m.message?.extendedTextMessage?.text || m.message?.imageMessage?.caption || '[mídia]',
-            hora:   new Date((m.messageTimestamp||Date.now()/1000)*1000),
-            fromMe: m.key?.fromMe
-          })).sort((a,b) => a.hora - b.hora);
+      if (prov === 'evolution') {
+        const jid = numero.includes('@') ? numero : `${numero}@s.whatsapp.net`;
+        const r = await fetch(`${wppCfg.url}/chat/findMessages/${inst}`, {
+          method: 'POST',
+          headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ where: { key: { remoteJid: jid } }, limit: 50 })
+        });
+        if (r.ok) {
+          const data = await r.json();
+          const lista = Array.isArray(data) ? data : (data.messages?.records || data.data || []);
+          if (lista.length) {
+            msgs = lista.map(m => ({
+              de:     m.key?.fromMe ? (m.key?.participant ? 'bot' : 'humano') : 'cliente',
+              texto:  m.message?.conversation || m.message?.extendedTextMessage?.text || m.message?.imageMessage?.caption || '[mídia]',
+              hora:   new Date((m.messageTimestamp||Date.now()/1000)*1000),
+              fromMe: m.key?.fromMe
+            })).sort((a,b) => a.hora - b.hora);
+          }
+        }
+
+      } else if (prov === 'waha') {
+        const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+        const jid = numero.includes('@') ? numero : `${numero}@c.us`;
+        const r = await fetch(`${baseUrl}/api/sessions/${inst}/chats/${encodeURIComponent(jid)}/messages?limit=50`, {
+          headers: { 'X-Api-Key': wppCfg.token }
+        });
+        if (r.ok) {
+          const data = await r.json();
+          const lista = Array.isArray(data) ? data : (data.messages || []);
+          if (lista.length) {
+            msgs = lista.map(m => ({
+              de:     m.fromMe ? 'humano' : 'cliente',
+              texto:  m.body || m.caption || '[mídia]',
+              hora:   new Date((m.timestamp||Date.now()/1000)*1000),
+              fromMe: m.fromMe
+            })).sort((a,b) => a.hora - b.hora);
+          }
+        }
+
+      } else if (prov === 'wppconnect') {
+        const r = await fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/get-messages?phone=${numero}&count=50`);
+        if (r.ok) {
+          const data = await r.json();
+          const lista = data.response || data.data || [];
+          if (lista.length) {
+            msgs = lista.map(m => ({
+              de:     m.fromMe ? 'humano' : 'cliente',
+              texto:  m.body || m.caption || '[mídia]',
+              hora:   new Date((m.timestamp||Date.now()/1000)*1000),
+              fromMe: m.fromMe
+            })).sort((a,b) => a.hora - b.hora);
+          }
         }
       }
-    } catch(e) { console.warn('findMessages:', e.message); }
+    } catch(e) { console.warn('Msgs API:', e.message); }
   }
 
   // Fallback: banco
@@ -4326,6 +4426,55 @@ async function carregarMsgsConversa(numero) {
   el.scrollTop = el.scrollHeight;
 }
 
+// ── ENVIO MULTI-PROVEDOR ──────────────────────────────────────
+async function enviarMensagemWpp(numero, texto) {
+  if (!wppCfg.url || !wppCfg.token) throw new Error('Configure a API WhatsApp primeiro.');
+  const inst = wppCfg.instancia || 'default';
+  const prov  = wppCfg.provedor;
+
+  if (prov === 'evolution') {
+    const r = await fetch(`${wppCfg.url}/message/sendText/${inst}`, {
+      method: 'POST', headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number: numero, text: texto })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'Falha Evolution'); }
+
+  } else if (prov === 'waha') {
+    const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+    const jid = numero.includes('@') ? numero : `${numero}@c.us`;
+    const r = await fetch(`${baseUrl}/api/sendText`, {
+      method: 'POST', headers: { 'X-Api-Key': wppCfg.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: inst, chatId: jid, text: texto })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Falha WAHA'); }
+
+  } else if (prov === 'wppconnect') {
+    const r = await fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/send-message`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: numero, message: texto, isGroup: false })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'Falha WPPConnect'); }
+
+  } else if (prov === 'zapi') {
+    const r = await fetch(`https://api.z-api.io/instances/${wppCfg.url}/token/${wppCfg.token}/send-text`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: numero, message: texto })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Falha Z-API'); }
+
+  } else if (prov === 'twilio') {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${wppCfg.url}/Messages.json`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Basic ' + btoa(wppCfg.url + ':' + wppCfg.token), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ From: `whatsapp:+${wppCfg.instancia}`, To: `whatsapp:+${numero}`, Body: texto })
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'Falha Twilio'); }
+
+  } else {
+    throw new Error(`Provedor desconhecido: ${prov}`);
+  }
+}
+
 async function enviarMsgHumana() {
   if (!numeroAtivo) { toast('Selecione uma conversa primeiro!', 'error'); return; }
   const inp = document.getElementById('wpp-inp');
@@ -4345,17 +4494,13 @@ async function enviarMsgHumana() {
     el.scrollTop = el.scrollHeight;
   }
 
-  if (wppCfg.url && wppCfg.token && wppCfg.instancia) {
+  if (wppCfg.url && wppCfg.token) {
     try {
-      const r = await fetch(`${wppCfg.url}/message/sendText/${wppCfg.instancia}`, {
-        method: 'POST', headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number: numeroAtivo, text: msg })
-      });
-      if (r.ok) toast('✅ Enviado!', 'success');
-      else { const e = await r.json(); toast('Erro: '+(e.message||'Falha'), 'error'); }
+      await enviarMensagemWpp(numeroAtivo, msg);
+      toast('✅ Enviado!', 'success');
     } catch(e) { toast('Erro: '+e.message, 'error'); }
   } else {
-    toast('⚠️ Configure a Evolution API para enviar', 'info');
+    toast('⚠️ Configure a API WhatsApp nas configurações', 'warning');
   }
 
   try {
@@ -4463,14 +4608,10 @@ async function enviarRespostaHumana() {
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  // Enviar via Evolution API
-  if (wppCfg.url && wppCfg.token && wppCfg.instancia) {
+  // Enviar via provedor configurado
+  if (wppCfg.url && wppCfg.token) {
     try {
-      await fetch(`${wppCfg.url}/message/sendText/${wppCfg.instancia}`, {
-        method: 'POST',
-        headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number: numeroAtivo, text: msg })
-      });
+      await enviarMensagemWpp(numeroAtivo, msg);
       toast('✅ Mensagem enviada!', 'success');
     } catch(e) {
       toast('Erro ao enviar: ' + e.message, 'error');
@@ -4567,6 +4708,40 @@ function renderWppFields() {
       <input class="ai-input" id="wpp-token" type="password" value="${wppCfg.token}" placeholder="seu-auth-token">
     </div>
     <input id="wpp-inst" type="hidden" value="">`;
+  if (p === 'waha') return `
+    <div class="ai-field" style="margin-top:12px">
+      <label>URL da API WAHA</label>
+      <input class="ai-input" id="wpp-url" value="${wppCfg.url}" placeholder="http://localhost:3000" oninput="validarUrlWaha(this)">
+      <span style="font-size:10px;color:var(--text2);margin-top:3px">⚠️ Use a porta da <strong style="color:var(--gold)">API</strong> (padrão: 3000), <strong style="color:var(--red)">não</strong> a do painel (/painel). Ex: <code style="color:var(--cyan)">http://seu-vps:3000</code></span>
+      <div id="waha-url-warn" style="display:none;margin-top:6px;background:rgba(230,57,70,.12);border:1px solid rgba(230,57,70,.35);border-radius:8px;padding:8px 12px;font-size:11px;color:#ff6b75;">
+        ⚠️ A URL parece conter <strong>/painel</strong> — isso é o dashboard visual, não a API. Remova o <code>/painel</code> e use só <code>http://host:porta</code>
+      </div>
+    </div>
+    <div class="ai-field">
+      <label>API Key (WAHA_API_KEY)</label>
+      <input class="ai-input" id="wpp-token" type="password" value="${wppCfg.token}" placeholder="sua-api-key-waha">
+      <span style="font-size:10px;color:var(--text2);margin-top:3px">Definido em <code style="color:var(--cyan)">WAHA_API_KEY</code> na variável de ambiente do Docker</span>
+    </div>
+    <div class="ai-field">
+      <label>Nome da Sessão</label>
+      <input class="ai-input" id="wpp-inst" value="${wppCfg.instancia || 'default'}" placeholder="default">
+      <span style="font-size:10px;color:var(--text2);margin-top:3px">Nome da sessão criada no WAHA (<code style="color:var(--cyan)">default</code> = padrão)</span>
+    </div>`;
+  if (p === 'wppconnect') return `
+    <div class="ai-field" style="margin-top:12px">
+      <label>URL do servidor WPPConnect</label>
+      <input class="ai-input" id="wpp-url" value="${wppCfg.url}" placeholder="http://localhost:21465">
+      <span style="font-size:10px;color:var(--text2);margin-top:3px">Ex: http://seu-vps:21465 — Auto-hospedado</span>
+    </div>
+    <div class="ai-field">
+      <label>Secret Key</label>
+      <input class="ai-input" id="wpp-token" type="password" value="${wppCfg.token}" placeholder="sua-secret-key">
+      <span style="font-size:10px;color:var(--text2);margin-top:3px">Chave definida ao instalar o WPPConnect Server</span>
+    </div>
+    <div class="ai-field">
+      <label>Nome da Sessão</label>
+      <input class="ai-input" id="wpp-inst" value="${wppCfg.instancia}" placeholder="meu-restaurante">
+    </div>`;
   return '';
 }
 
@@ -4588,6 +4763,13 @@ async function testarConexaoWpp() {
       headers = { 'apikey': wppCfg.token };
     } else if (wppCfg.provedor === 'zapi') {
       testUrl = `https://api.z-api.io/instances/${wppCfg.url}/token/${wppCfg.token}/status`;
+    } else if (wppCfg.provedor === 'waha') {
+      const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+      testUrl = `${baseUrl}/api/sessions`;
+      headers = { 'X-Api-Key': wppCfg.token, 'Content-Type': 'application/json' };
+    } else if (wppCfg.provedor === 'wppconnect') {
+      testUrl = `${wppCfg.url}/api/${wppCfg.instancia || 'default'}/${wppCfg.token}/status-session`;
+      headers = { 'Content-Type': 'application/json' };
     } else {
       testUrl = `https://api.twilio.com/2010-04-01/Accounts/${wppCfg.url}.json`;
       headers = { 'Authorization': 'Basic ' + btoa(wppCfg.url + ':' + wppCfg.token) };
@@ -4606,21 +4788,91 @@ async function testarConexaoWpp() {
   }
 }
 
+function validarUrlWaha(input) {
+  const warn = document.getElementById('waha-url-warn');
+  if (!warn) return;
+  const val = input.value.toLowerCase();
+  warn.style.display = (val.includes('/painel') || val.includes('/dashboard') || val.includes('/panel')) ? 'block' : 'none';
+}
+
 async function gerarQRCodeWpp() {
   salvarCfgWpp();
   const box = document.getElementById('wpp-qr-box');
   if (!box) return;
-  if (!wppCfg.url || !wppCfg.token || !wppCfg.instancia) {
-    toast('Preencha URL, Token e Instância primeiro!', 'error'); return;
+  if (!wppCfg.url || !wppCfg.token) {
+    toast('Preencha URL e Token primeiro!', 'error'); return;
   }
   box.innerHTML = '<div style="color:#333;font-size:12px;padding:20px;text-align:center">⏳ Gerando QR Code...</div>';
   try {
-    // Evolution API — gerar QR Code
-    const r = await fetch(`${wppCfg.url}/instance/connect/${wppCfg.instancia}`, {
-      headers: { 'apikey': wppCfg.token }
-    });
-    const data = await r.json();
-    const qr = data.base64 || data.qrcode?.base64 || data.qr;
+    let qr = null;
+    const inst = wppCfg.instancia || 'default';
+
+    if (wppCfg.provedor === 'evolution') {
+      if (!wppCfg.instancia) { toast('Preencha o nome da instância!', 'error'); return; }
+      const r = await fetch(`${wppCfg.url}/instance/connect/${inst}`, { headers: { 'apikey': wppCfg.token } });
+      const data = await r.json();
+      qr = data.base64 || data.qrcode?.base64 || data.qr;
+
+    } else if (wppCfg.provedor === 'waha') {
+      // Sanitizar URL — remover /painel ou trailing slash
+      const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+      const sess    = inst || 'default';
+
+      // 1. Tentar iniciar/garantir sessão existente
+      try {
+        await fetch(`${baseUrl}/api/sessions/${sess}/start`, {
+          method: 'POST',
+          headers: { 'X-Api-Key': wppCfg.token, 'Content-Type': 'application/json' }
+        });
+      } catch(e) { /* sessão pode já estar ativa */ }
+
+      await new Promise(res => setTimeout(res, 1200));
+
+      // 2. Buscar QR — tentar JSON primeiro, depois imagem direta
+      const qrUrl = `${baseUrl}/api/${sess}/auth/qr`;
+      const r2 = await fetch(qrUrl, { headers: { 'X-Api-Key': wppCfg.token } });
+
+      const ct = r2.headers.get('content-type') || '';
+      if (ct.includes('image/')) {
+        // Resposta é a imagem PNG direto
+        const blob = await r2.blob();
+        qr = await new Promise(res => {
+          const rd = new FileReader();
+          rd.onloadend = () => res(rd.result);
+          rd.readAsDataURL(blob);
+        });
+      } else {
+        // Tentar parsear JSON
+        const text = await r2.text();
+        try {
+          const data2 = JSON.parse(text);
+          qr = data2.value || data2.qr || data2.base64 || data2.data;
+          // Se vier como URL de imagem
+          if (qr && qr.startsWith('http')) {
+            const imgR = await fetch(qr, { headers: { 'X-Api-Key': wppCfg.token } });
+            const imgBlob = await imgR.blob();
+            qr = await new Promise(res => { const rd = new FileReader(); rd.onloadend = ()=>res(rd.result); rd.readAsDataURL(imgBlob); });
+          }
+        } catch(jsonErr) {
+          // Pode ser que o endpoint retornou HTML de erro
+          throw new Error('WAHA retornou resposta inválida. Verifique se a URL da API está correta (sem /painel) e se a API Key está certa.');
+        }
+      }
+
+    } else if (wppCfg.provedor === 'wppconnect') {
+      // WPPConnect: gera token de sessão e busca QR
+      const r = await fetch(`${wppCfg.url}/api/${inst}/${wppCfg.token}/generate-token`, { method: 'POST' });
+      const tok = await r.json();
+      const sessionToken = tok.token || wppCfg.token;
+      const r2 = await fetch(`${wppCfg.url}/api/${inst}/${sessionToken}/qrcode-session`);
+      const data2 = await r2.json();
+      qr = data2.qrcode || data2.qr || data2.data;
+
+    } else {
+      box.innerHTML = '<div style="color:#888;font-size:12px;padding:20px;text-align:center">QR Code não disponível para este provedor.</div>';
+      return;
+    }
+
     if (qr) {
       const src = qr.startsWith('data:') ? qr : 'data:image/png;base64,' + qr;
       box.innerHTML = `<img src="${src}" style="width:180px;height:180px;border-radius:6px">`;
@@ -4640,18 +4892,27 @@ async function verificarStatusWpp() {
 
   try {
     let url = '', headers = {};
+    const inst = wppCfg.instancia || 'default';
     if (wppCfg.provedor === 'evolution') {
-      url = `${wppCfg.url}/instance/connectionState/${wppCfg.instancia}`;
+      url = `${wppCfg.url}/instance/connectionState/${inst}`;
       headers = { 'apikey': wppCfg.token };
+    } else if (wppCfg.provedor === 'waha') {
+      const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
+      url = `${baseUrl}/api/sessions/${inst}`;
+      headers = { 'X-Api-Key': wppCfg.token };
+    } else if (wppCfg.provedor === 'wppconnect') {
+      url = `${wppCfg.url}/api/${inst}/${wppCfg.token}/status-session`;
     }
     const r = await fetch(url, { headers });
     const data = await r.json();
-    const estado = data.instance?.state || data.state || 'desconhecido';
+    // Normalizar estado entre provedores
+    const estado = data.instance?.state || data.state || data.status || data.sessionState || 'desconhecido';
+    const estadoNorm = String(estado).toLowerCase();
 
-    if (estado === 'open' || estado === 'connected') {
+    if (['open','connected','authenticated','working'].includes(estadoNorm)) {
       if (st) { st.className = 'conn-status ok'; st.innerHTML = '✅ WhatsApp conectado e ativo'; }
-      const num = data.instance?.profileName || data.number || 'Número conectado';
-      if (ni) ni.innerHTML = `<div style="font-size:28px;margin-bottom:6px">✅</div><div style="font-weight:900;font-size:16px;color:var(--green)">${num}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">Instância: ${wppCfg.instancia}</div>`;
+      const num = data.instance?.profileName || data.number || data.me?.id || 'Número conectado';
+      if (ni) ni.innerHTML = `<div style="font-size:28px;margin-bottom:6px">✅</div><div style="font-weight:900;font-size:16px;color:var(--green)">${num}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">Instância: ${inst}</div>`;
     } else {
       if (st) { st.className = 'conn-status err'; st.innerHTML = `❌ Desconectado (${estado})`; }
     }
@@ -5025,15 +5286,11 @@ async function enviarMsgAdmin() {
   inp.value = ''; inp.style.height = 'auto';
   renderMensagensAdmin(wppContatoAtivo);
 
-  // Enviar via Evolution API
-  if (wppCfg.url && wppCfg.token && wppCfg.instancia) {
+  // Enviar via provedor configurado
+  if (wppCfg.url && wppCfg.token) {
     try {
       send.disabled = true;
-      await fetch(`${wppCfg.url}/message/sendText/${wppCfg.instancia}`, {
-        method: 'POST',
-        headers: { 'apikey': wppCfg.token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number: wppContatoAtivo, text: txt })
-      });
+      await enviarMensagemWpp(wppContatoAtivo, txt);
       toast('✅ Mensagem enviada!', 'success');
     } catch(e) {
       toast('Mensagem salva localmente. Erro ao enviar: ' + e.message, 'info');
