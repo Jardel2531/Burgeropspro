@@ -4376,7 +4376,7 @@ function renderAgente() {
           <div style="font-size:14px;color:#9aa0a6;margin-bottom:24px;">Prosseguir para <span style="color:#8ab4f8;font-weight:500;">BurgerOps</span></div>
           <!-- Lista de contas -->
           <div id="google-oauth-accounts" style="display:flex;flex-direction:column;gap:2px;">
-            <div onclick="selecionarContaGoogle('jardelvander25@gmail.com','Jardel Vander')" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:8px;cursor:pointer;transition:background .15s;border-bottom:1px solid #3c4043;" onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+            <div onclick="iniciarOAuthGoogle()" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:8px;cursor:pointer;transition:background .15s;border-bottom:1px solid #3c4043;" onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
               <div style="width:40px;height:40px;border-radius:50%;background:#1a73e8;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">J</div>
               <div>
                 <div style="font-size:14px;color:#e8eaed;font-weight:500;">Jardel Vander</div>
@@ -4762,10 +4762,15 @@ function renderAgente() {
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cadastrarTreinoTexto();}"></textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
             <div style="display:flex;gap:8px;">
-              <button title="Adicionar imagem" onclick="toast('📸 Upload de imagem em breve!','warning')" style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">🖼️</button>
-              <button title="Adicionar vídeo"  onclick="toast('🎥 Upload de vídeo em breve!','warning')"  style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">📹</button>
-              <button title="Adicionar áudio"  onclick="toast('🎵 Upload de áudio em breve!','warning')"  style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">🎵</button>
-              <button title="Adicionar doc"    onclick="toast('📄 Upload de doc em breve!','warning')"    style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;">📄</button>
+              <!-- Inputs ocultos para cada tipo de arquivo -->
+              <input type="file" id="treino-upload-imagem" accept="image/*" style="display:none;" onchange="anexarArquivoTreino(this,'imagem')">
+              <input type="file" id="treino-upload-video"  accept="video/*" style="display:none;" onchange="anexarArquivoTreino(this,'video')">
+              <input type="file" id="treino-upload-audio"  accept="audio/*" style="display:none;" onchange="anexarArquivoTreino(this,'audio')">
+              <input type="file" id="treino-upload-doc"    accept=".pdf,.doc,.docx,.txt,.csv" style="display:none;" onchange="anexarArquivoTreino(this,'documento')">
+              <button title="Adicionar imagem"   onclick="document.getElementById('treino-upload-imagem').click()" style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">🖼️</button>
+              <button title="Adicionar vídeo"    onclick="document.getElementById('treino-upload-video').click()"  style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">📹</button>
+              <button title="Adicionar áudio"    onclick="document.getElementById('treino-upload-audio').click()"  style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">🎵</button>
+              <button title="Adicionar documento" onclick="document.getElementById('treino-upload-doc').click()"   style="background:var(--bg3);border:1px solid var(--border);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">📄</button>
             </div>
             <button onclick="cadastrarTreinoTexto()" class="btn btn-gold btn-sm">Cadastrar</button>
           </div>
@@ -4955,28 +4960,204 @@ function fecharModal(id) {
 }
 
 function abrirModalGoogleCalendar() {
-  const oauthModal = document.getElementById('modal-google-oauth');
+  if (sessionStorage.getItem("gcal_conectado") === "1") {
+    document.getElementById("modal-gcalendar")?.classList.add("open");
+    const inner = document.getElementById("modal-gcalendar-inner");
+    if (inner) setTimeout(() => inner.style.transform = "scale(1)", 10);
+    return;
+  }
+  const oauthModal = document.getElementById("modal-google-oauth");
   if (oauthModal) {
-    oauthModal.classList.add('open');
-    const inner = document.getElementById('modal-google-oauth-inner');
-    if (inner) setTimeout(() => inner.style.transform = 'scale(1)', 10);
+    oauthModal.classList.add("open");
+    const inner = document.getElementById("modal-google-oauth-inner");
+    if (inner) setTimeout(() => inner.style.transform = "scale(1)", 10);
   }
 }
-function selecionarContaGoogle(email, nome) {
+// ── GOOGLE CALENDAR OAUTH REAL ────────────────────────────────
+// Client ID do Google Cloud Console (OAuth 2.0)
+// Escopos necessários para o Google Calendar
+const GCAL_SCOPES = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.events',
+  'openid','email','profile'
+].join(' ');
+
+let gcalPopup = null;
+let gcalPollTimer = null;
+
+function iniciarOAuthGoogle() {
+  // Lê o Client ID salvo (campo no modal ou sessionStorage)
+  const clientId = sessionStorage.getItem('gcal_client_id') || '';
+  if (!clientId) {
+    // Mostra campo para o usuário informar o Client ID
+    fecharModal('google-oauth');
+    abrirModalClientIdGcal();
+    return;
+  }
+  abrirPopupOAuthGoogle(clientId);
+}
+
+function abrirPopupOAuthGoogle(clientId) {
+  const redirectUri = window.location.href.split('?')[0].split('#')[0];
+  const state = Math.random().toString(36).substring(2);
+  sessionStorage.setItem('gcal_oauth_state', state);
+
+  const params = new URLSearchParams({
+    client_id:     clientId,
+    redirect_uri:  redirectUri,
+    response_type: 'code',
+    scope:         GCAL_SCOPES,
+    access_type:   'offline',
+    prompt:        'consent select_account',
+    state:         state,
+  });
+
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+
+  // Fecha modal de seleção de conta
   fecharModal('google-oauth');
+
+  // Abre popup real do Google
+  const w = 500, h = 620;
+  const left = Math.round(window.screenX + (window.outerWidth  - w) / 2);
+  const top  = Math.round(window.screenY + (window.outerHeight - h) / 2);
+  gcalPopup = window.open(url, 'gcal_oauth',
+    `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`);
+
+  if (!gcalPopup || gcalPopup.closed) {
+    toast('❌ Popup bloqueado! Permita popups para este site.', 'error');
+    return;
+  }
+
+  toast('🔐 Autorizando com o Google...', 'warning');
+
+  // Monitora o popup para capturar o retorno
+  clearInterval(gcalPollTimer);
+  gcalPollTimer = setInterval(() => {
+    if (!gcalPopup || gcalPopup.closed) {
+      clearInterval(gcalPollTimer);
+      return;
+    }
+    try {
+      const popupUrl = gcalPopup.location.href;
+      const returnUrl = window.location.href.split('?')[0].split('#')[0];
+      if (popupUrl.startsWith(returnUrl)) {
+        const urlParams = new URLSearchParams(gcalPopup.location.search);
+        const code  = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+        gcalPopup.close();
+        clearInterval(gcalPollTimer);
+        if (error) {
+          toast('❌ Autorização cancelada.', 'error');
+          return;
+        }
+        if (code && state === sessionStorage.getItem('gcal_oauth_state')) {
+          gcalOAuthSucesso(code);
+        }
+      }
+    } catch(e) {
+      // Cross-origin enquanto está no Google — normal, ignora
+    }
+  }, 500);
+}
+
+function gcalOAuthSucesso(code) {
+  // Salva o código de autorização e marca como conectado
+  sessionStorage.setItem('gcal_auth_code', code);
+  sessionStorage.setItem('gcal_conectado', '1');
+
+  // Atualiza visual do card para "Conectado"
+  atualizarBotaoGcalConectado();
+
+  toast('✅ Google Calendar conectado com sucesso!', 'success');
+
+  // Abre o modal de configuração
   setTimeout(() => {
     document.getElementById('modal-gcalendar')?.classList.add('open');
     const inner = document.getElementById('modal-gcalendar-inner');
     if (inner) setTimeout(() => inner.style.transform = 'scale(1)', 10);
-    toast('Conta ' + email + ' conectada!', 'success');
-  }, 300);
+  }, 400);
 }
+
+function atualizarBotaoGcalConectado() {
+  // Encontra o botão do card Google Calendar e marca como conectado
+  document.querySelectorAll('#panel-integracoes button').forEach(btn => {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes('abrirModalGoogleCalendar')) {
+      btn.style.background = 'var(--green)';
+      btn.style.color = '#fff';
+      btn.textContent = '✅ CONECTADO — Configurar';
+      btn.setAttribute('onclick', "document.getElementById('modal-gcalendar')?.classList.add('open');const i=document.getElementById('modal-gcalendar-inner');if(i)setTimeout(()=>i.style.transform='scale(1)',10);");
+    }
+  });
+}
+
+// Modal para informar o Google Client ID (caso não esteja configurado)
+function abrirModalClientIdGcal() {
+  const existing = document.getElementById('modal-gcal-clientid');
+  if (existing) { existing.classList.add('open'); return; }
+
+  const div = document.createElement('div');
+  div.id = 'modal-gcal-clientid';
+  div.className = 'modal-bg';
+  div.style.zIndex = '1300';
+  div.onclick = function(e) { if(e.target===this) this.classList.remove('open'); };
+  div.innerHTML = `
+    <div class="modal" style="width:480px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-weight:900;font-size:17px;display:flex;align-items:center;gap:8px;">
+          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Configurar Google Calendar
+        </div>
+        <button onclick="this.closest('.modal-bg').classList.remove('open')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+      </div>
+      <div style="background:rgba(58,134,255,.08);border:1px solid rgba(58,134,255,.25);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:12px;color:#8ab4f8;line-height:1.7;">
+        <strong>Como obter seu Client ID:</strong><br>
+        1. Acesse <a href="https://console.cloud.google.com" target="_blank" style="color:#8ab4f8;">console.cloud.google.com</a><br>
+        2. Crie ou selecione um projeto<br>
+        3. Ative a <strong>Google Calendar API</strong><br>
+        4. Em "Credenciais" → crie <strong>OAuth 2.0 Client ID</strong> (Tipo: Web)<br>
+        5. Adicione <code style="background:#1e1e1e;padding:1px 5px;border-radius:3px;">${window.location.href.split('?')[0]}</code> como URI de redirecionamento
+      </div>
+      <div class="form-group">
+        <label>Client ID do Google OAuth</label>
+        <input class="input-field" id="gcal-client-id-input" placeholder="xxxxxxxxxx.apps.googleusercontent.com" style="width:100%;font-size:12px;font-family:monospace;">
+      </div>
+      <button onclick="salvarClientIdGcal()" style="width:100%;background:#4285f4;border:none;color:#fff;font-family:'Nunito';font-size:13px;font-weight:900;padding:14px;border-radius:8px;cursor:pointer;margin-top:8px;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        Conectar com o Google →
+      </button>
+    </div>`;
+  document.body.appendChild(div);
+  setTimeout(() => div.classList.add('open'), 10);
+}
+
+function salvarClientIdGcal() {
+  const id = document.getElementById('gcal-client-id-input')?.value.trim();
+  if (!id || !id.includes('.apps.googleusercontent.com')) {
+    toast('❌ Client ID inválido. Deve terminar com .apps.googleusercontent.com', 'error');
+    return;
+  }
+  sessionStorage.setItem('gcal_client_id', id);
+  document.getElementById('modal-gcal-clientid')?.classList.remove('open');
+  setTimeout(() => abrirPopupOAuthGoogle(id), 200);
+}
+
+function selecionarContaGoogle(email, nome) {
+  // Clicou numa conta existente → inicia OAuth real
+  fecharModal('google-oauth');
+  const clientId = sessionStorage.getItem('gcal_client_id') || '';
+  if (!clientId) {
+    setTimeout(() => abrirModalClientIdGcal(), 200);
+  } else {
+    setTimeout(() => abrirPopupOAuthGoogle(clientId), 200);
+  }
+}
+
 function adicionarOutraConta() {
-  // Esconde lista de contas, mostra painel de digitar e-mail
   const contas = document.getElementById('google-oauth-accounts');
   const outra  = document.getElementById('google-oauth-outra');
   if (contas) contas.style.display = 'none';
-  if (outra)  { outra.style.display = 'flex'; }
+  if (outra)  outra.style.display  = 'flex';
   setTimeout(() => document.getElementById('google-outra-email')?.focus(), 50);
 }
 
@@ -4994,9 +5175,30 @@ function confirmarOutraConta() {
     setTimeout(() => { document.getElementById('google-outra-email').style.borderColor = '#5f6368'; }, 1500);
     return;
   }
-  const nome = email.split('@')[0];
-  selecionarContaGoogle(email, nome);
+  // Com e-mail digitado → inicia OAuth real (o Google vai pré-preencher com esse e-mail)
+  fecharModal('google-oauth');
+  const clientId = sessionStorage.getItem('gcal_client_id') || '';
+  if (!clientId) {
+    setTimeout(() => abrirModalClientIdGcal(), 200);
+  } else {
+    setTimeout(() => abrirPopupOAuthGoogle(clientId), 200);
+  }
 }
+
+// Verifica ao carregar se voltou de um redirect OAuth (sem popup)
+(function verificarRetornoOAuth() {
+  const params = new URLSearchParams(window.location.search);
+  const code  = params.get('code');
+  const state = params.get('state');
+  const error = params.get('error');
+  if (!code && !error) return;
+  // Limpa a URL
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if (error) { toast('❌ Autorização cancelada pelo Google.', 'error'); return; }
+  if (code && state === sessionStorage.getItem('gcal_oauth_state')) {
+    gcalOAuthSucesso(code);
+  }
+})();
 function abrirModalElevenLabs() {
   document.getElementById('modal-elevenlabs')?.classList.add('open');
 }
@@ -5266,13 +5468,21 @@ function renderTreinoLista() {
     cont.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text2);font-size:13px;">Nenhum treinamento cadastrado ainda.</div>';
   } else {
     cont.innerHTML = slice.map(t => `
-      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;">
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;position:relative;" id="treino-item-${t.id}">
         <span style="font-size:20px;">${tipoIcone[t.tipo]||'📝'}</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.conteudo}</div>
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="treino-conteudo-${t.id}">${t.conteudo}</div>
+          ${t.arquivo ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;">📎 ${t.arquivo}</div>` : ''}
         </div>
         <span class="badge badge-green" style="font-size:10px;">${t.status}</span>
-        <button onclick="removerTreino(${t.id})" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;" title="Remover">⋮</button>
+        <div style="position:relative;">
+          <button onclick="toggleTreinoMenu(event,${t.id})" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;line-height:1;padding:4px 6px;border-radius:6px;transition:background .15s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'" title="Opções">⋮</button>
+          <div id="treino-menu-${t.id}" style="display:none;position:absolute;right:0;top:32px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:140px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+            <div onclick="editarTreino(${t.id})" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;transition:background .12s;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='transparent'">✏️ Editar</div>
+            <div style="height:1px;background:var(--border);"></div>
+            <div onclick="confirmarExcluirTreino(${t.id})" style="display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;color:var(--red);transition:background .12s;" onmouseover="this.style.background='rgba(230,57,70,.08)'" onmouseout="this.style.background='transparent'">🗑️ Excluir</div>
+          </div>
+        </div>
       </div>`).join('');
   }
 
@@ -5287,11 +5497,129 @@ function renderTreinoLista() {
   }
 }
 
+// Fecha qualquer menu de treino aberto ao clicar fora
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('[id^="treino-menu-"]') && !e.target.closest('button[onclick*="toggleTreinoMenu"]')) {
+    document.querySelectorAll('[id^="treino-menu-"]').forEach(m => m.style.display = 'none');
+  }
+});
+
+function toggleTreinoMenu(e, id) {
+  e.stopPropagation();
+  // Fecha todos os outros
+  document.querySelectorAll('[id^="treino-menu-"]').forEach(m => {
+    if (m.id !== 'treino-menu-'+id) m.style.display = 'none';
+  });
+  const menu = document.getElementById('treino-menu-'+id);
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function editarTreino(id) {
+  document.querySelectorAll('[id^="treino-menu-"]').forEach(m => m.style.display = 'none');
+  const item = treinamentosData.find(t => t.id === id);
+  if (!item) return;
+
+  // Cria modal de edição inline
+  const existing = document.getElementById('modal-editar-treino');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'modal-editar-treino';
+  div.className = 'modal-bg';
+  div.style.zIndex = '1400';
+  div.onclick = function(e) { if(e.target===this) this.remove(); };
+  div.innerHTML = `
+    <div class="modal" style="width:500px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-weight:900;font-size:17px;">✏️ Editar treinamento</div>
+        <button onclick="this.closest('.modal-bg').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Conteúdo</label>
+        <textarea id="editar-treino-input" class="input-field" rows="4" style="width:100%;resize:none;" maxlength="1028">${item.conteudo}</textarea>
+        <div style="text-align:right;font-size:11px;color:var(--text2);margin-top:4px;" id="editar-treino-count">${item.conteudo.length}/1028</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+        <button onclick="this.closest('.modal-bg').remove()" class="btn btn-outline btn-sm">Cancelar</button>
+        <button onclick="salvarEdicaoTreino(${id})" class="btn btn-gold btn-sm">💾 Salvar</button>
+      </div>
+    </div>`;
+  div.querySelector('#editar-treino-input').addEventListener('input', function() {
+    document.getElementById('editar-treino-count').textContent = this.value.length + '/1028';
+  });
+  document.body.appendChild(div);
+  setTimeout(() => div.classList.add('open'), 10);
+}
+
+function salvarEdicaoTreino(id) {
+  const val = document.getElementById('editar-treino-input')?.value.trim();
+  if (!val) { toast('O conteúdo não pode ser vazio!', 'error'); return; }
+  const item = treinamentosData.find(t => t.id === id);
+  if (item) item.conteudo = val;
+  salvarTreinamentosLocal();
+  renderTreinoLista();
+  document.getElementById('modal-editar-treino')?.remove();
+  toast('✅ Treinamento atualizado!', 'success');
+}
+
+function confirmarExcluirTreino(id) {
+  document.querySelectorAll('[id^="treino-menu-"]').forEach(m => m.style.display = 'none');
+  const item = treinamentosData.find(t => t.id === id);
+  if (!item) return;
+
+  const existing = document.getElementById('modal-confirmar-excluir-treino');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'modal-confirmar-excluir-treino';
+  div.className = 'modal-bg';
+  div.style.zIndex = '1400';
+  div.onclick = function(e) { if(e.target===this) this.remove(); };
+  div.innerHTML = `
+    <div class="modal" style="width:420px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:12px;">🗑️</div>
+      <div style="font-weight:900;font-size:17px;margin-bottom:8px;">Excluir treinamento?</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6;">
+        Tem certeza que deseja excluir este treinamento?<br>
+        <strong style="color:var(--text);">"${item.conteudo.substring(0,60)}${item.conteudo.length>60?'...':''}"</strong>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button onclick="this.closest('.modal-bg').remove()" class="btn btn-outline" style="min-width:110px;">Cancelar</button>
+        <button onclick="removerTreino(${id})" class="btn btn-red" style="min-width:110px;">🗑️ Excluir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  setTimeout(() => div.classList.add('open'), 10);
+}
+
 function removerTreino(id) {
+  document.getElementById('modal-confirmar-excluir-treino')?.remove();
   treinamentosData = treinamentosData.filter(t => t.id !== id);
   salvarTreinamentosLocal();
   renderTreinoLista();
   toast('🗑️ Treinamento removido.', 'success');
+}
+
+function anexarArquivoTreino(input, tipo) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const tipoLabel = { imagem:'🖼️ Imagem', video:'📹 Vídeo', audio:'🎵 Áudio', documento:'📄 Documento' };
+  const reader = new FileReader();
+  reader.onload = function() {
+    treinamentosData.unshift({
+      id: Date.now(),
+      tipo: tipo,
+      conteudo: `${tipoLabel[tipo] || tipo}: ${file.name}`,
+      arquivo: file.name,
+      status: 'Treinado',
+      criadoEm: new Date()
+    });
+    salvarTreinamentosLocal();
+    renderTreinoLista();
+    toast(`✅ ${file.name} adicionado ao treinamento!`, 'success');
+  };
+  reader.readAsDataURL(file);
+  input.value = ''; // Reset para permitir selecionar o mesmo arquivo novamente
 }
 
 // ── INTERVENÇÃO HUMANA — estado global ───────────────────────
