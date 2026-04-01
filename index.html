@@ -1570,8 +1570,12 @@ function connectRealtime() {
             // Se conversa ativa, adicionar mensagem ao histórico
             if (nova.from_number === wppContatoAtivo) {
               if (!wppHistAdmin[wppContatoAtivo]) wppHistAdmin[wppContatoAtivo] = [];
-              wppHistAdmin[wppContatoAtivo].push({ role: 'user', content: nova.mensagem, ts: new Date(nova.criado_em).getTime(), origem: 'cliente' });
-              renderMensagensAdmin(wppContatoAtivo);
+              // Evitar duplicatas — checar se mensagem já existe pelo timestamp e conteúdo
+              const jaTemMensagem = wppHistAdmin[wppContatoAtivo].some(m => m.content === nova.mensagem && Math.abs(m.ts - new Date(nova.criado_em).getTime()) < 2000);
+              if (!jaTemMensagem) {
+                wppHistAdmin[wppContatoAtivo].push({ role: 'user', content: nova.mensagem, ts: new Date(nova.criado_em).getTime(), origem: 'cliente' });
+                renderMensagensAdmin(wppContatoAtivo);
+              }
             } else {
               toast(`💬 Nova mensagem de ${nova.from_number}`, 'info');
               adminScrollBadge();
