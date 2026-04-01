@@ -7064,11 +7064,30 @@ function abrirConversaAdmin(numero, nome) {
   if (send) { send.disabled = false; send.style.opacity = '1'; }
   if (ext)  { ext.disabled = false; ext.style.opacity = '1'; }
 
-  // Renderizar mensagens
-  renderMensagensAdmin(numero);
+  // Carregar mensagens do Supabase e renderizar
+  carregarMensagensDoSupabase(numero);
 
   // Re-renderizar lista para marcar ativo
   renderListaContatosAdmin(wppTodosContatos);
+}
+
+async function carregarMensagensDoSupabase(numero) {
+  try {
+    const rows = await sb.select('mensagens_webhook',
+      `slug=eq.${getSlug()}&from_number=eq.${numero}&order=criado_em.asc&limit=100`
+    );
+    if (rows && rows.length > 0) {
+      wppHistAdmin[numero] = rows.map(r => ({
+        role: 'user',
+        content: r.mensagem || '',
+        ts: new Date(r.criado_em).getTime(),
+        origem: 'cliente'
+      }));
+    }
+  } catch(e) {
+    console.warn('Erro ao carregar mensagens:', e.message);
+  }
+  renderMensagensAdmin(numero);
 }
 
 function renderMensagensAdmin(numero) {
