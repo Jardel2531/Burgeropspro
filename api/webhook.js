@@ -9,31 +9,31 @@ export default async function handler(req, res) {
   try {
     const body = req.body;
 
-    // Z-API formato correto documentado:
-    // { "phone": "5511999990000", "text": { "message": "oi" }, "isGroupMsg": false }
-    const from = body?.phone || body?.from || body?.sender || '';
-    const msg  = body?.text?.message
-               || body?.image?.caption
-               || body?.audio?.caption
-               || body?.document?.caption
-               || body?.video?.caption
-               || body?.message
-               || body?.body
-               || '[mídia]';
-
-    const slug = req.query?.slug || '';
-
-    // Retorna o payload completo para debug se não tiver from
-    if (!from) {
-      return res.status(200).json({ 
-        ok: false, 
-        debug: true,
-        msg: 'Sem remetente identificado',
-        payload_recebido: body,
-        slug
-      });
+    // Formato confirmado da Z-API:
+    // body.phone = número do remetente
+    // body.text.message = texto
+    // body.fromMe = true se foi enviado pelo próprio número
+    const fromMe = body?.fromMe === true;
+    if (fromMe) {
+      return res.status(200).json({ ok: true, msg: 'Mensagem própria ignorada' });
     }
 
+    const from = body?.phone || '';
+    const msg  = body?.text?.message
+               || body?.image?.caption
+               || body?.video?.caption
+               || body?.document?.caption
+               || body?.audio?.caption
+               || '[mídia]';
+
+    const senderName = body?.senderName || from;
+    const slug = req.query?.slug || '';
+
+    if (!from) {
+      return res.status(200).json({ ok: false, msg: 'Sem remetente', payload: body });
+    }
+
+    // Busca credenciais do cliente pelo slug
     let clientUrl = '', clientKey = '';
 
     if (slug) {
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, msg: 'Erro ao salvar: ' + err });
     }
 
-    return res.status(200).json({ ok: true, msg: 'Mensagem salva', from, mensagem: msg });
+    return res.status(200).json({ ok: true, msg: 'Mensagem salva', from, senderName, mensagem: msg });
 
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
