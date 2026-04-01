@@ -6272,7 +6272,7 @@ async function enviarMensagemWpp(numero, texto) {
     if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'Falha WPPConnect'); }
 
   } else if (prov === 'zapi') {
-    const r = await fetch(`https://api.z-api.io/instances/${wppCfg.url}/token/${wppCfg.token}/send-text`, {
+    const r = await fetch(`https://zapi-proxy.jardelvander25.workers.dev/proxy/instances/${wppCfg.url}/token/${wppCfg.token}/send-text`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Client-Token': wppCfg.client_token || '' },
       body: JSON.stringify({ phone: numero, message: texto })
     });
@@ -6583,7 +6583,7 @@ async function testarConexaoWpp() {
       testUrl = `${wppCfg.url}/instance/fetchInstances`;
       headers = { 'apikey': wppCfg.token };
     } else if (wppCfg.provedor === 'zapi') {
-      testUrl = `https://api.z-api.io/instances/${wppCfg.url}/token/${wppCfg.token}/status`;
+      testUrl = `https://zapi-proxy.jardelvander25.workers.dev/proxy/instances/${wppCfg.url}/token/${wppCfg.token}/status`;
       headers = { 'Client-Token': wppCfg.client_token || '' };
     } else if (wppCfg.provedor === 'waha') {
       const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
