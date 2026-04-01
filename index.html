@@ -1066,6 +1066,7 @@ let wppCfg = {
   provedor:     'evolution', // evolution | zapi | twilio
   url:          '',          // URL base da API
   token:        '',          // API token/key
+  client_token: '',          // Client-Token Z-API (conta)
   instancia:    '',          // nome da instância (Evolution)
   numero:       '',          // número conectado
   ativo:        false,
@@ -6272,7 +6273,7 @@ async function enviarMensagemWpp(numero, texto) {
 
   } else if (prov === 'zapi') {
     const r = await fetch(`https://api.z-api.io/instances/${wppCfg.url}/token/${wppCfg.token}/send-text`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Client-Token': wppCfg.client_token || '' },
       body: JSON.stringify({ phone: numero, message: texto })
     });
     if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Falha Z-API'); }
@@ -6464,11 +6465,12 @@ function carregarCfgWpp() {
 }
 
 function salvarCfgWpp() {
-  wppCfg.provedor   = document.querySelector('.provedor-card.selected')?.dataset.prov || wppCfg.provedor;
-  wppCfg.url        = document.getElementById('wpp-url')?.value.trim() || '';
-  wppCfg.token      = document.getElementById('wpp-token')?.value.trim() || '';
-  wppCfg.instancia  = document.getElementById('wpp-inst')?.value.trim() || '';
-  wppCfg.ativo      = document.getElementById('wpp-ativo')?.checked || false;
+  wppCfg.provedor      = document.querySelector('.provedor-card.selected')?.dataset.prov || wppCfg.provedor;
+  wppCfg.url           = document.getElementById('wpp-url')?.value.trim() || '';
+  wppCfg.token         = document.getElementById('wpp-token')?.value.trim() || '';
+  wppCfg.client_token  = document.getElementById('wpp-client-token')?.value.trim() || '';
+  wppCfg.instancia     = document.getElementById('wpp-inst')?.value.trim() || '';
+  wppCfg.ativo         = document.getElementById('wpp-ativo')?.checked || false;
   localStorage.setItem(wppCfgKey(), JSON.stringify(wppCfg));
   toast('✅ Config WhatsApp salva!', 'success');
 }
@@ -6511,6 +6513,10 @@ function renderWppFields() {
     <div class="ai-field">
       <label>Token Z-API</label>
       <input class="ai-input" id="wpp-token" type="password" value="${wppCfg.token}" placeholder="seu-token-zapi">
+    </div>
+    <div class="ai-field">
+      <label>Client-Token Z-API <span style="color:var(--text2);font-weight:400;font-size:10px">(em Segurança → Security Client Token)</span></label>
+      <input class="ai-input" id="wpp-client-token" type="password" value="${wppCfg.client_token||''}" placeholder="seu-client-token-zapi">
     </div>
     <input id="wpp-inst" type="hidden" value="">`;
   if (p === 'twilio') return `
@@ -6578,6 +6584,7 @@ async function testarConexaoWpp() {
       headers = { 'apikey': wppCfg.token };
     } else if (wppCfg.provedor === 'zapi') {
       testUrl = `https://api.z-api.io/instances/${wppCfg.url}/token/${wppCfg.token}/status`;
+      headers = { 'Client-Token': wppCfg.client_token || '' };
     } else if (wppCfg.provedor === 'waha') {
       const baseUrl = wppCfg.url.replace(/\/painel\/?$/i,'').replace(/\/dashboard\/?$/i,'').replace(/\/$/, '');
       testUrl = `${baseUrl}/api/sessions`;
