@@ -6915,7 +6915,30 @@ async function carregarConversasAdmin() {
     } catch(e) {}
   }
 
-  // Fallback: dados simulados para demonstração
+  // Fallback: buscar do Supabase (mensagens_webhook)
+  if (contatos.length === 0) {
+    try {
+      const rows = await sb.select('mensagens_webhook', `slug=eq.${getSlug()}&order=criado_em.desc&limit=200`);
+      if (rows && rows.length > 0) {
+        const grupos = {};
+        rows.forEach(r => {
+          if (!r.from_number) return;
+          if (!grupos[r.from_number]) grupos[r.from_number] = [];
+          grupos[r.from_number].push(r);
+        });
+        contatos = Object.entries(grupos).map(([num, msgs]) => ({
+          numero:   num,
+          nome:     msgs[0].senderName || num,
+          ultima:   msgs[0].mensagem || '...',
+          ts:       new Date(msgs[0].criado_em).getTime() / 1000,
+          naoLidas: msgs.filter(m => !m.respondido_por).length,
+          iaAtiva:  wppContatoIaMap[num] !== false
+        }));
+      }
+    } catch(e) { console.warn('Erro ao buscar do Supabase:', e.message); }
+  }
+
+  // Último fallback: dados simulados (só se não tiver nada real)
   if (contatos.length === 0) {
     contatos = [
       { numero:'5511999990001', nome:'João Silva',   ultima:'Qual o cardápio de hoje?',   ts: Date.now()/1000 - 120,  naoLidas:2, iaAtiva:true  },
@@ -6924,7 +6947,6 @@ async function carregarConversasAdmin() {
       { numero:'5511999990004', nome:'Ana Oliveira', ultima:'Quais combos têm?',            ts: Date.now()/1000 - 1800, naoLidas:0, iaAtiva:true  },
       { numero:'5511999990005', nome:'Pedro Costa',  ultima:'Qual o horário de vocês?',     ts: Date.now()/1000 - 3600, naoLidas:3, iaAtiva:false },
     ];
-    // Inicializar histórico simulado
     if (!wppHistAdmin['5511999990001']) {
       wppHistAdmin['5511999990001'] = [
         { role:'user',      content:'Olá, bom dia!',                       ts: Date.now()-600000,  origem:'cliente' },
