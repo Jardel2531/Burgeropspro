@@ -1544,7 +1544,7 @@ function connectRealtime() {
     ws.onopen = () => {
       setStatus(true);
       document.getElementById('rt-status').textContent = 'Realtime: ✅ ativo';
-      ['cardapio', 'pedidos', 'estoque'].forEach(t => {
+      ['cardapio', 'pedidos', 'estoque', 'mensagens_webhook'].forEach(t => {
         ws.send(JSON.stringify({ topic: `realtime:public:${t}:slug=eq.${slug}`, event: 'phx_join', payload: {}, ref: t }));
       });
     };
@@ -1554,6 +1554,30 @@ function connectRealtime() {
         const t = msg.topic?.split(':')[2];
         if (t === currentPage || (currentPage === 'pedidos' && t === 'pedidos')) showPage(currentPage);
         if (t === 'pedidos' && msg.event === 'INSERT') toast('🍔 Novo pedido!', 'info');
+        if (t === 'mensagens_webhook' && msg.event === 'INSERT') {
+          const nova = msg.payload?.record;
+          if (nova && nova.from_number) {
+            // Atualizar lista de contatos
+            const jaExiste = wppTodosContatos.find(c => c.numero === nova.from_number);
+            if (!jaExiste) {
+              wppTodosContatos.unshift({ numero: nova.from_number, nome: nova.from_number, ultima: nova.mensagem, ts: Date.now()/1000, naoLidas: 1, iaAtiva: true });
+            } else {
+              jaExiste.ultima = nova.mensagem;
+              jaExiste.ts = Date.now()/1000;
+              if (nova.from_number !== wppContatoAtivo) jaExiste.naoLidas = (jaExiste.naoLidas || 0) + 1;
+            }
+            renderListaContatosAdmin(wppTodosContatos);
+            // Se conversa ativa, adicionar mensagem ao histórico
+            if (nova.from_number === wppContatoAtivo) {
+              if (!wppHistAdmin[wppContatoAtivo]) wppHistAdmin[wppContatoAtivo] = [];
+              wppHistAdmin[wppContatoAtivo].push({ role: 'user', content: nova.mensagem, ts: new Date(nova.criado_em).getTime(), origem: 'cliente' });
+              renderMensagensAdmin(wppContatoAtivo);
+            } else {
+              toast(`💬 Nova mensagem de ${nova.from_number}`, 'info');
+              adminScrollBadge();
+            }
+          }
+        }
         updateBadges();
       }
     };
