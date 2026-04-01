@@ -1,9 +1,3 @@
-// ============================================================
-//  BurgerOps Pro — Vercel Serverless Function
-//  Recebe webhooks da Z-API e salva no Supabase do cliente
-//  Arquivo: /api/webhook.js
-// ============================================================
-
 const MASTER_URL = 'https://hsqwchhwrikpbluhtwqk.supabase.co';
 const MASTER_KEY = 'sb_publishable_8Q0er9mtHSWAPOXYYec87g_8IuDxPIj';
 
@@ -14,15 +8,30 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    console.log('Z-API Webhook payload:', JSON.stringify(body));
 
-    const from = body?.phone || body?.from || body?.sender || body?.senderLid || '';
-    const msg  = body?.text?.message || body?.message || body?.body
-               || body?.listMessage?.description || body?.extendedTextMessage?.text || '';
+    // Z-API formato correto documentado:
+    // { "phone": "5511999990000", "text": { "message": "oi" }, "isGroupMsg": false }
+    const from = body?.phone || body?.from || body?.sender || '';
+    const msg  = body?.text?.message
+               || body?.image?.caption
+               || body?.audio?.caption
+               || body?.document?.caption
+               || body?.video?.caption
+               || body?.message
+               || body?.body
+               || '[mídia]';
+
     const slug = req.query?.slug || '';
 
-    if (!from || !msg) {
-      return res.status(200).json({ ok: true, msg: 'Ignorado', from, msg_recebida: msg, payload: body });
+    // Retorna o payload completo para debug se não tiver from
+    if (!from) {
+      return res.status(200).json({ 
+        ok: false, 
+        debug: true,
+        msg: 'Sem remetente identificado',
+        payload_recebido: body,
+        slug
+      });
     }
 
     let clientUrl = '', clientKey = '';
@@ -53,7 +62,7 @@ export default async function handler(req, res) {
     }
 
     if (!clientUrl || !clientKey) {
-      return res.status(200).json({ ok: false, msg: 'Cliente não encontrado' });
+      return res.status(200).json({ ok: false, msg: 'Cliente não encontrado', slug });
     }
 
     const insertResp = await fetch(`${clientUrl}/rest/v1/mensagens_webhook`, {
@@ -78,7 +87,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, msg: 'Erro ao salvar: ' + err });
     }
 
-    return res.status(200).json({ ok: true, msg: 'Mensagem salva com sucesso' });
+    return res.status(200).json({ ok: true, msg: 'Mensagem salva', from, mensagem: msg });
 
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
