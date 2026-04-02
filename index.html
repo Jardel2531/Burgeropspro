@@ -5190,11 +5190,42 @@ function switchAgenteAba(aba) {
   });
   if (aba === 'intervencao') setTimeout(carregarConversasWpp, 100);
   if (aba === 'whatsapp')   setTimeout(iniciarPainelWpp, 100);
-  if (aba === 'treinamentos') setTimeout(renderTreinoLista, 100);
-  if (aba === 'dashboard')    setTimeout(renderDashboardAgente, 100);
+  if (aba === 'treinamentos')  setTimeout(renderTreinoLista, 100);
+  if (aba === 'dashboard')     setTimeout(renderDashboardAgente, 100);
+  if (aba === 'preferencias')  setTimeout(restaurarPreferencias, 50);
 }
 
 // ══ PREFERÊNCIAS ══
+function restaurarPreferencias() {
+  try {
+    const slug = SESSION?.slug || 'default';
+    const saved = JSON.parse(localStorage.getItem('burgerops_prefs_' + slug) || '{}');
+    if (Object.keys(saved).length === 0) return; // nada salvo, mantém defaults
+
+    const map = {
+      'pref-transferir': 'transferir',
+      'pref-resumo':     'resumo',
+      'pref-emojis':     'emojis',
+      'pref-assinar':    'assinar',
+      'pref-restringir': 'restringir',
+      'pref-dividir':    'dividir',
+      'pref-digitando':  'digitando',
+      'pref-lembrete':   'lembrete',
+      'pref-busca':      'busca',
+    };
+    Object.entries(map).forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (el && key in saved) el.checked = saved[key];
+    });
+    const tz = document.getElementById('pref-timezone');
+    if (tz && saved.timezone) tz.value = saved.timezone;
+    const tr = document.getElementById('pref-tempo-resposta');
+    if (tr && saved.tempoResposta !== undefined) tr.value = saved.tempoResposta;
+    const li = document.getElementById('pref-limite-int');
+    if (li && saved.limiteInt !== undefined) li.value = saved.limiteInt;
+  } catch(e) {}
+}
+
 function switchPrefTab(sub) {
   ['conversa','inatividade','webhooks','transferencia'].forEach(t => {
     const btn = document.getElementById('pref-tab-'+t);
