@@ -2807,7 +2807,7 @@ function atualizarLabelDashFiltro() {
 async function renderDashboard() {
   document.getElementById('topbar-actions').innerHTML = `
     <button class="btn btn-outline btn-sm" onclick="exportCSV()">📄 Exportar CSV</button>
-    <button class="btn btn-gold btn-sm" onclick="exportDashboardPDF('empresa')">📑 Download PDF</button>
+    <button class="btn btn-gold btn-sm" onclick="exportDashboardPDF('empresa', dashFiltro)">📑 Download PDF do Período</button>
   `;
   const c = document.getElementById('content');
   // Resetar filtro ao entrar no dashboard
@@ -2990,19 +2990,28 @@ async function exportCSV() {
 // ============================================================
 //  EXPORT PDF — Dashboard Empresa + Dashboard Agente IA
 // ============================================================
-async function exportDashboardPDF(tipo) {
+async function exportDashboardPDF(tipo, filtro) {
   const empresa = SESSION?.nome_empresa || 'BurgerOps';
   const slug    = SESSION?.slug || '';
   const agora   = new Date().toLocaleString('pt-BR');
+  // Usa o filtro global do dashboard se não for passado explicitamente
+  const periodoFiltro = filtro || dashFiltro || { ini: null, fim: null, label: 'Todos' };
 
   // ── Coleta dados do dashboard empresa ──
   async function getDadosEmpresa() {
     try {
-      const [peds, card, est] = await Promise.all([
+      const [allPedsRaw, card, est] = await Promise.all([
         sb.select('pedidos', `slug=eq.${slug}&order=criado_em.desc`),
         sb.select('cardapio', `slug=eq.${slug}&order=categoria,nome`),
         sb.select('estoque', `slug=eq.${slug}&order=nome`)
       ]);
+      // Aplicar filtro de período (igual ao dashboard)
+      const peds = allPedsRaw.filter(p => {
+        const t = new Date(p.criado_em);
+        if (periodoFiltro.ini && t < periodoFiltro.ini) return false;
+        if (periodoFiltro.fim && t > periodoFiltro.fim) return false;
+        return true;
+      });
       const conc = peds.filter(p => p.status === 'concluido');
       const canc = peds.filter(p => p.status === 'cancelado');
       const rec  = conc.reduce((s,p) => s + Number(p.total), 0);
@@ -3032,10 +3041,10 @@ async function exportDashboardPDF(tipo) {
     const supaKey = SESSION?.supabase_key || localStorage.getItem('sb_key') || '';
     if (!supaUrl || !supaKey || !slug) return null;
     try {
-      const dias = 30;
-      const inicio = new Date(); inicio.setDate(inicio.getDate() - dias);
+      const inicio = periodoFiltro.ini || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
+      const fim    = periodoFiltro.fim || new Date();
       const headers = { apikey: supaKey, Authorization: 'Bearer ' + supaKey };
-      const r = await fetch(`${supaUrl}/rest/v1/mensagens_webhook?slug=eq.${encodeURIComponent(slug)}&criado_em=gte.${inicio.toISOString()}&order=criado_em.asc`, { headers });
+      const r = await fetch(`${supaUrl}/rest/v1/mensagens_webhook?slug=eq.${encodeURIComponent(slug)}&criado_em=gte.${inicio.toISOString()}&criado_em=lte.${fim.toISOString()}&order=criado_em.asc`, { headers });
       if (!r.ok) return null;
       const msgs = await r.json();
       const total   = msgs.length;
@@ -3072,6 +3081,11 @@ async function exportDashboardPDF(tipo) {
         <div style="font-size:28px;font-weight:900;color:#f5a623;letter-spacing:1px;">🍔 ${empresa}</div>
         <div style="font-size:12px;color:#888;margin-top:4px;">Relatório gerado em ${agora}</div>
         ${slug ? `<div style="font-size:11px;color:#666;">Slug: ${slug}</div>` : ''}
+        <div style="margin-top:8px;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.35);border-radius:6px;padding:6px 12px;display:inline-block;">
+          <span style="font-size:11px;color:#f5a623;font-weight:900;">📅 Período: ${periodoFiltro.label || 'Todos'}</span>
+          ${periodoFiltro.ini ? `<span style="font-size:10px;color:#aaa;margin-left:8px;">De: ${periodoFiltro.ini.toLocaleString('pt-BR')}</span>` : ''}
+          ${periodoFiltro.fim ? `<span style="font-size:10px;color:#aaa;margin-left:8px;">Até: ${periodoFiltro.fim.toLocaleString('pt-BR')}</span>` : ''}
+        </div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:11px;color:#888;">BurgerOps Pro</div>
@@ -3292,13 +3306,19 @@ function renderConfig() {
       </div>
     </div>` : '';
 
+  const slugKey = SESSION?.slug || 'default';
+  const treinos = (() => { try { return JSON.parse(localStorage.getItem('burgerops_treinos_'+slugKey)||'[]'); } catch(e){ return []; }})();
+  const prefs = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slugKey)||'{}'); } catch(e){ return {}; }})();
+
   c.innerHTML = `
     ${superAdminPanel}
-    <div style="max-width:640px">
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px">
+    <div style="max-width:760px;display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Webhook n8n -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px">
         <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:16px">📡 Webhook n8n</div>
         <div class="form-group">
-          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">URL do Webhook n8n</label>
+          <label style="font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">URL do Webhook n8n (recebe eventos do sistema)</label>
           <div style="display:flex;gap:10px">
             <input type="text" class="input-field" id="cfg-n8n" value="${n8nUrl}" placeholder="https://seu-n8n.app.n8n.cloud/webhook/xxxx" style="flex:1">
             <button class="btn btn-gold" onclick="salvarN8n()">💾 Salvar</button>
@@ -3313,6 +3333,50 @@ function renderConfig() {
           </div>
         </div>
       </div>
+
+      <!-- Como integrar o Agente IA com o n8n corretamente -->
+      <div style="background:var(--bg2);border:1px solid rgba(58,134,255,.3);border-radius:12px;padding:24px">
+        <div style="font-size:16px;font-weight:800;color:var(--blue);margin-bottom:4px">🤖 Como o Agente IA se conecta ao WhatsApp via n8n</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px">O agente IA usa prompt, treinamentos, preferências e intenções cadastrados neste painel. Para funcionar corretamente no WhatsApp, o n8n precisa enviar o contexto completo.</div>
+
+        <!-- Status do sistema -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+          <span style="background:${agenteCfg.ativo?'rgba(45,198,83,.12)':'rgba(230,57,70,.1)'};border:1px solid ${agenteCfg.ativo?'rgba(45,198,83,.35)':'rgba(230,57,70,.3)'};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:${agenteCfg.ativo?'var(--green)':'#ff6b75'}">🤖 Agente ${agenteCfg.ativo?'ATIVO':'INATIVO'}</span>
+          <span style="background:${agenteCfg.apiKey?'rgba(45,198,83,.12)':'rgba(230,57,70,.1)'};border:1px solid ${agenteCfg.apiKey?'rgba(45,198,83,.35)':'rgba(230,57,70,.3)'};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:${agenteCfg.apiKey?'var(--green)':'#ff6b75'}">🔑 API Key ${agenteCfg.apiKey?'Configurada':'Não configurada'}</span>
+          <span style="background:${agenteCfg.prompt?'rgba(45,198,83,.12)':'rgba(245,166,35,.1)'};border:1px solid ${agenteCfg.prompt?'rgba(45,198,83,.35)':'rgba(245,166,35,.3)'};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:${agenteCfg.prompt?'var(--green)':'var(--gold)'}">📝 Prompt ${agenteCfg.prompt?'Configurado':'Padrão'}</span>
+          <span style="background:${treinos.length>0?'rgba(45,198,83,.12)':'rgba(136,136,136,.1)'};border:1px solid ${treinos.length>0?'rgba(45,198,83,.35)':'var(--border)'};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:${treinos.length>0?'var(--green)':'var(--text2)'}">📚 ${treinos.length} Treinamentos</span>
+          <span style="background:${(intencoesData||[]).filter(i=>i.ativo).length>0?'rgba(45,198,83,.12)':'rgba(136,136,136,.1)'};border:1px solid ${(intencoesData||[]).filter(i=>i.ativo).length>0?'rgba(45,198,83,.35)':'var(--border)'};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:${(intencoesData||[]).filter(i=>i.ativo).length>0?'var(--green)':'var(--text2)'}">🎯 ${(intencoesData||[]).filter(i=>i.ativo).length} Intenções</span>
+        </div>
+
+        <!-- Passos -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg3);border-radius:10px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</div>
+            <div><div style="font-weight:800;font-size:13px;margin-bottom:3px;">WhatsApp recebe mensagem → n8n é acionado</div><div style="font-size:12px;color:var(--text2);">O provedor (Evolution, WAHA, etc) dispara o webhook para o n8n com a mensagem do cliente.</div></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg3);border-radius:10px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</div>
+            <div><div style="font-weight:800;font-size:13px;margin-bottom:3px;">n8n chama a IA com o contexto completo do BurgerOps</div><div style="font-size:12px;color:var(--text2);">O n8n deve incluir no System Prompt: <span style="color:var(--gold)">prompt do agente + treinamentos + preferências + intenções + cardápio + pedidos do dia</span>. Use o botão abaixo para copiar o payload.</div></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg3);border-radius:10px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</div>
+            <div><div style="font-weight:800;font-size:13px;margin-bottom:3px;">IA responde → n8n envia de volta ao WhatsApp</div><div style="font-size:12px;color:var(--text2);">A resposta vai para o provedor WhatsApp. O n8n também deve registrar a mensagem no Supabase (<code style="color:var(--cyan)">mensagens_webhook</code>) para aparecer no Dashboard.</div></div>
+          </div>
+        </div>
+
+        <!-- Botões de ação -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-gold btn-sm" onclick="copiarPayloadN8n()" style="flex:1">📋 Copiar Payload Completo (Prompt + Treinos + Prefs)</button>
+          <button class="btn btn-outline btn-sm" onclick="abrirPreviewContexto()" style="flex:1">👁️ Pré-visualizar Contexto Gerado</button>
+        </div>
+
+        <div style="margin-top:12px;background:rgba(58,134,255,.08);border:1px solid rgba(58,134,255,.2);border-radius:8px;padding:12px;font-size:11px;color:#8ab4f8;line-height:1.7;">
+          <strong>💡 System Prompt recomendado para o n8n (Groq/Claude):</strong><br>
+          Cole o payload copiado no campo <code>system</code> da chamada à API. Inclua também as últimas mensagens da conversa como histórico. O agente usará automaticamente: cardápio, pedidos do dia, estoque, treinamentos, preferências e intenções.
+        </div>
+      </div>
+
+      <!-- Sessão Ativa -->
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px">
         <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:12px">ℹ️ Sessão Ativa</div>
         <div style="font-size:13px;line-height:2;color:var(--text2)">
@@ -3337,6 +3401,20 @@ function renderConfig() {
       carregarEmpresas().then(() => renderSuperAdminCompaniesList());
     }
   }
+}
+
+async function abrirPreviewContexto() {
+  toast('⏳ Gerando contexto completo...', 'info');
+  const ctx = await gerarContexto();
+  const win = window.open('', '_blank', 'width=700,height=800');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contexto do Agente — ${SESSION?.nome_empresa}</title>
+  <style>body{background:#0e0e0e;color:#f0f0f0;font-family:monospace;font-size:12px;padding:20px;line-height:1.7;white-space:pre-wrap;word-break:break-word;}
+  .btn{background:#f5a623;border:none;border-radius:8px;padding:8px 16px;font-weight:900;cursor:pointer;font-size:13px;margin-bottom:16px;}</style>
+  </head><body>
+  <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('ctx').textContent).then(()=>alert('Copiado!'))">📋 Copiar tudo</button>
+  <div id="ctx">${ctx.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+  </body></html>`);
+  win.document.close();
 }
 
 function salvarN8n() {
@@ -3614,8 +3692,8 @@ async function gerarContexto() {
 
   // ── Treinamentos cadastrados ──
   try {
-    const slug = SESSION?.slug || 'default';
-    const treinos = JSON.parse(localStorage.getItem('burgerops_treinos_' + slug) || '[]');
+    const slugKey = SESSION?.slug || 'default';
+    const treinos = JSON.parse(localStorage.getItem('burgerops_treinos_' + slugKey) || '[]');
     if (treinos.length > 0) {
       const textos    = treinos.filter(t => t.tipo === 'texto');
       const websites  = treinos.filter(t => t.tipo === 'website');
@@ -3623,7 +3701,7 @@ async function gerarContexto() {
       const docs      = treinos.filter(t => t.tipo === 'documento');
 
       if (textos.length) {
-        ctx += `\n=== BASE DE CONHECIMENTO ===\n`;
+        ctx += `\n=== BASE DE CONHECIMENTO (TREINAMENTOS) ===\n`;
         textos.forEach(t => { ctx += `• ${t.conteudo}\n`; });
       }
       if (websites.length) {
@@ -3641,13 +3719,141 @@ async function gerarContexto() {
     }
   } catch(e) {}
 
-  ctx += `\n=== INSTRUÇÃO ESPECIAL ===\nSempre responda em português. Use os dados acima para responder com precisão. Não invente pratos, preços ou status de pedidos que não estejam listados.`;
+  // ── Preferências do Agente ──
+  try {
+    const slugKey = SESSION?.slug || 'default';
+    const prefs = JSON.parse(localStorage.getItem('burgerops_prefs_' + slugKey) || '{}');
+    const prefsAtivas = [];
+    if (prefs.transferir !== false) prefsAtivas.push('Pode transferir para humano quando necessário');
+    if (prefs.resumo !== false) prefsAtivas.push('Gera resumo ao transferir para humano');
+    if (prefs.emojis) prefsAtivas.push('Pode usar emojis nas respostas');
+    if (prefs.assinar) prefsAtivas.push('Assina o nome do agente em cada resposta');
+    if (prefs.restringir !== false) prefsAtivas.push('Restringe-se somente a temas do restaurante');
+    if (prefs.dividir !== false) prefsAtivas.push('Divide respostas longas em partes');
+    if (prefs.digitando !== false) prefsAtivas.push('Simula digitando antes de responder');
+    if (prefs.lembrete !== false) prefsAtivas.push('Pode registrar lembretes para o cliente');
+    if (prefs.busca !== false) prefsAtivas.push('Usa busca inteligente nos treinamentos');
+    if (prefsAtivas.length) {
+      ctx += `\n=== PREFERÊNCIAS DO AGENTE ===\n`;
+      prefsAtivas.forEach(p => { ctx += `• ${p}\n`; });
+    }
+    if (prefs.timezone) ctx += `• Timezone: ${prefs.timezone}\n`;
+  } catch(e) {}
+
+  // ── Intenções cadastradas ──
+  try {
+    if (intencoesData && intencoesData.length > 0) {
+      const ativas = intencoesData.filter(i => i.ativo);
+      if (ativas.length) {
+        ctx += `\n=== INTENÇÕES CONFIGURADAS ===\n`;
+        ctx += `Quando detectar as intenções abaixo, execute a ação correspondente:\n`;
+        ativas.forEach(int => {
+          ctx += `• INTENÇÃO: "${int.nome}"`;
+          if (int.desc) ctx += ` — ${int.desc}`;
+          if (int.keywords) ctx += ` | Palavras-chave: ${int.keywords}`;
+          if (int.webhook) ctx += ` | Ação: notificar webhook`;
+          ctx += '\n';
+        });
+      }
+    }
+  } catch(e) {}
+
+  ctx += `\n=== INSTRUÇÃO ESPECIAL ===\nSempre responda em português. Use os dados acima para responder com precisão. Não invente pratos, preços ou status de pedidos que não estejam listados. Se o cliente pedir algo fora do cardápio ou fora do contexto do restaurante, informe educadamente que não pode ajudar com isso.`;
   return ctx;
 }
 
 // ============================================================
-//  ROTEADOR MULTI-PROVEDOR — Anthropic · OpenAI · Gemini · Custom
+//  ENDPOINT N8N — Processa mensagem WhatsApp com contexto completo
+//  O n8n deve fazer POST para a URL desta função exportada
+//  Retorna: { resposta, contexto_completo, prompt_sistema }
 // ============================================================
+
+// Expõe API para o n8n acessar via window.BurgerOpsAPI
+window.BurgerOpsAPI = {
+  // Chamado pelo n8n: recebe mensagem, retorna resposta da IA com contexto completo
+  async processarMensagem({ mensagem, from_number, historico = [] }) {
+    if (!agenteCfg.ativo) return { erro: 'Agente IA inativo', resposta: null };
+    if (!agenteCfg.apiKey) return { erro: 'API Key não configurada', resposta: null };
+
+    const ctx = await gerarContexto();
+    const slugKey = SESSION?.slug || 'default';
+    const prefs   = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slugKey)||'{}'); } catch(e){ return {}; }})();
+
+    // Monta system prompt completo com TUDO
+    const systemPrompt = [
+      agenteCfg.prompt || `Você é ${agenteCfg.nome}, assistente virtual do ${SESSION?.nome_empresa}.`,
+      `Tom de comunicação: ${ {amigavel:'amigável e descontraído',formal:'formal e profissional',divertido:'divertido e animado',direto:'direto e objetivo'}[agenteCfg.tom] || 'amigável'}.`,
+      agenteCfg.saudacao ? `Saudação padrão: "${agenteCfg.saudacao}"` : '',
+      prefs.emojis ? 'Use emojis nas respostas.' : 'Não use emojis.',
+      prefs.assinar ? `Assine com seu nome "${agenteCfg.nome}" no final de cada resposta.` : '',
+      prefs.restringir !== false ? 'Responda SOMENTE sobre temas do restaurante.' : '',
+      prefs.dividir !== false ? 'Se a resposta for longa, divida em partes curtas e naturais.' : '',
+      ctx
+    ].filter(Boolean).join('\n\n');
+
+    // Monta histórico limitado
+    const hist = historico.slice(-(agenteCfg.limite_hist * 2));
+    hist.push({ role: 'user', content: mensagem });
+
+    try {
+      const resposta = await chamarIA(systemPrompt, hist, 1000);
+
+      // Salva no Supabase para o dashboard
+      try {
+        await sb.insert('mensagens_webhook', {
+          slug: getSlug(), from_number,
+          mensagem, ai_respondeu: true, resposta_ia: resposta,
+          criado_em: new Date().toISOString()
+        });
+      } catch(e) {}
+
+      return {
+        resposta,
+        prompt_sistema: systemPrompt,
+        contexto_ativo: ctx.substring(0, 800) + (ctx.length > 800 ? '...' : '')
+      };
+    } catch(e) {
+      return { erro: e.message, resposta: null };
+    }
+  },
+
+  // Retorna o contexto completo atual (útil para debug no n8n)
+  async getContexto() {
+    return await gerarContexto();
+  },
+
+  // Retorna configuração atual do agente (sem API key)
+  getConfig() {
+    const { apiKey, googleTtsKey, ...safe } = agenteCfg;
+    return safe;
+  }
+};
+
+// ── Gera JSON do sistema para copiar/exportar ao n8n ──────────
+function gerarPayloadN8n() {
+  const slug = SESSION?.slug || 'default';
+  const prefs = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slug)||'{}'); } catch(e){ return {}; }})();
+  const treinos = (() => { try { return JSON.parse(localStorage.getItem('burgerops_treinos_'+slug)||'[]'); } catch(e){ return []; }})();
+  const cfg = { ...agenteCfg }; delete cfg.apiKey; delete cfg.googleTtsKey;
+
+  return JSON.stringify({
+    _instrucao: 'Cole este JSON no campo HTTP Request do n8n para contextualizar a IA',
+    agente: cfg,
+    preferencias: prefs,
+    treinamentos: treinos.filter(t => t.tipo === 'texto').map(t => t.conteudo),
+    intencoes: (intencoesData || []).filter(i => i.ativo),
+    empresa: SESSION?.nome_empresa,
+    slug: SESSION?.slug
+  }, null, 2);
+}
+
+function copiarPayloadN8n() {
+  const payload = gerarPayloadN8n();
+  navigator.clipboard.writeText(payload)
+    .then(() => toast('✅ Payload copiado! Cole no n8n.', 'success'))
+    .catch(() => toast('Ctrl+C manualmente no console.', 'info'));
+}
+
 async function chamarIA(systemPrompt, messages, maxTokens) {
   // Lê do DOM se disponível (painel aberto), senão usa valor salvo
   const key      = document.getElementById('ag-key')?.value.trim()     || agenteCfg.apiKey;
@@ -3866,6 +4072,7 @@ function renderAgente() {
   carregarCfgWpp();
   document.getElementById('topbar-actions').innerHTML = `
     <button class="btn btn-outline btn-sm" onclick="atualizarCtxPreview()">🔄 Contexto</button>
+    <button class="btn btn-outline btn-sm" onclick="copiarPayloadN8n()" title="Copiar JSON completo com prompt+treinamentos+preferências para usar no n8n">📋 Payload n8n</button>
     <button class="btn btn-outline btn-sm" onclick="baixarSQLMigracao()" title="Baixar SQL de migração do Supabase">🗄️ SQL</button>
     <button class="btn btn-gold btn-sm" onclick="salvarTudoAgente()">💾 Salvar tudo</button>`;
 
@@ -4037,9 +4244,33 @@ function renderAgente() {
         <!-- Contexto em Tempo Real -->
         <div class="ai-card">
           <div class="ai-card-title">📡 Contexto em Tempo Real</div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Prévia do que o agente lê do banco:</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px">O que o agente lê do sistema a cada mensagem:</div>
+
+          <!-- Status do que está carregado -->
+          <div id="ctx-status-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+            ${(() => {
+              const slug = SESSION?.slug || 'default';
+              const treinos = (() => { try { return JSON.parse(localStorage.getItem('burgerops_treinos_'+slug)||'[]'); } catch(e){ return []; }})();
+              const prefs = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slug)||'{}'); } catch(e){ return {}; }})();
+              const chips = [
+                { label: `📚 ${treinos.length} treinamentos`, ok: treinos.length > 0 },
+                { label: `🎛️ Preferências`, ok: Object.keys(prefs).length > 0 },
+                { label: `🎯 ${(intencoesData||[]).filter(i=>i.ativo).length} intenções`, ok: (intencoesData||[]).filter(i=>i.ativo).length > 0 },
+                { label: `🤖 Prompt configurado`, ok: !!agenteCfg.prompt },
+                { label: `🔑 API Key`, ok: !!agenteCfg.apiKey },
+              ];
+              return chips.map(c => `<span style="background:${c.ok?'rgba(45,198,83,.12)':'rgba(230,57,70,.1)'};border:1px solid ${c.ok?'rgba(45,198,83,.35)':'rgba(230,57,70,.3)'};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:${c.ok?'var(--green)':'#ff6b75'}">${c.label} ${c.ok?'✓':'✗'}</span>`).join('');
+            })()}
+          </div>
+
           <div class="ctx-box" id="ctx-preview">Clique em "Atualizar contexto" para visualizar...</div>
-          <button class="btn btn-outline btn-sm" onclick="atualizarCtxPreview()" style="margin-top:10px">🔄 Visualizar</button>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="atualizarCtxPreview()" style="flex:1">🔄 Visualizar Contexto</button>
+            <button class="btn btn-outline btn-sm" onclick="copiarPayloadN8n()" style="flex:1" title="Copia JSON com todo o contexto para usar no n8n">📋 Copiar para n8n</button>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.5;">
+            ℹ️ <strong style="color:var(--gold)">Como funciona:</strong> A cada mensagem recebida no WhatsApp, o agente lê automaticamente: cardápio, pedidos do dia, estoque crítico, treinamentos, preferências e intenções.
+          </div>
         </div>
 
         <!-- Preview Chat -->
@@ -5157,8 +5388,8 @@ function renderAgente() {
             <option value="90">Últimos 90 dias</option>
           </select>
           <button class="btn btn-outline btn-sm" onclick="renderDashboardAgente()">🔄 Atualizar</button>
-          <button class="btn btn-gold btn-sm" onclick="exportDashboardPDF('agente')">📑 PDF Agente</button>
-          <button class="btn btn-outline btn-sm" onclick="exportDashboardPDF('ambos')" style="border-color:var(--gold);color:var(--gold);">📊 PDF Completo</button>
+          <button class="btn btn-gold btn-sm" onclick="exportAgentePDF()">📑 PDF do Agente</button>
+          <button class="btn btn-outline btn-sm" onclick="exportAgentePDFCompleto()" style="border-color:var(--gold);color:var(--gold);">📊 PDF Completo</button>
         </div>
       </div>
 
@@ -5462,6 +5693,22 @@ async function renderDashboardAgente() {
 }
 
 // ── ABAS ─────────────────────────────────────────────────────
+function exportAgentePDF() {
+  const dias = parseInt(document.getElementById('dash-periodo')?.value || 30);
+  const now = new Date();
+  const ini = new Date(now.getTime() - dias * 86400000);
+  const filtro = { ini, fim: now, label: `Últimos ${dias} dias` };
+  exportDashboardPDF('agente', filtro);
+}
+
+function exportAgentePDFCompleto() {
+  const dias = parseInt(document.getElementById('dash-periodo')?.value || 30);
+  const now = new Date();
+  const ini = new Date(now.getTime() - dias * 86400000);
+  const filtro = { ini, fim: now, label: `Últimos ${dias} dias` };
+  exportDashboardPDF('ambos', filtro);
+}
+
 function switchAgenteAba(aba) {
   agenteAbaAtiva = aba;
   const abas = ['config','whatsapp','preferencias','integracoes','intencoes','treinamentos',
