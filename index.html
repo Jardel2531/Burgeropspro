@@ -2805,7 +2805,10 @@ function atualizarLabelDashFiltro() {
 }
 
 async function renderDashboard() {
-  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-gold btn-sm" onclick="exportCSV()">📄 Exportar CSV</button>`;
+  document.getElementById('topbar-actions').innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="exportCSV()">📄 Exportar CSV</button>
+    <button class="btn btn-gold btn-sm" onclick="exportDashboardPDF('empresa')">📑 Download PDF</button>
+  `;
   const c = document.getElementById('content');
   // Resetar filtro ao entrar no dashboard
   dashFiltro = { ini: null, fim: null, label: 'Todos' };
@@ -2982,6 +2985,237 @@ async function exportCSV() {
   a.download = `pedidos_${getSlug()}_${Date.now()}.csv`;
   a.click();
   toast('CSV exportado!', 'success');
+}
+
+// ============================================================
+//  EXPORT PDF — Dashboard Empresa + Dashboard Agente IA
+// ============================================================
+async function exportDashboardPDF(tipo) {
+  const empresa = SESSION?.nome_empresa || 'BurgerOps';
+  const slug    = SESSION?.slug || '';
+  const agora   = new Date().toLocaleString('pt-BR');
+
+  // ── Coleta dados do dashboard empresa ──
+  async function getDadosEmpresa() {
+    try {
+      const [peds, card, est] = await Promise.all([
+        sb.select('pedidos', `slug=eq.${slug}&order=criado_em.desc`),
+        sb.select('cardapio', `slug=eq.${slug}&order=categoria,nome`),
+        sb.select('estoque', `slug=eq.${slug}&order=nome`)
+      ]);
+      const conc = peds.filter(p => p.status === 'concluido');
+      const canc = peds.filter(p => p.status === 'cancelado');
+      const rec  = conc.reduce((s,p) => s + Number(p.total), 0);
+      const tick = conc.length ? rec / conc.length : 0;
+      const conv = peds.length ? Math.round(conc.length / peds.length * 100) : 0;
+
+      const itensCnt = {};
+      conc.forEach(p => {
+        (p.itens || '').split(/[\n,]/).forEach(it => {
+          const nm = it.trim().replace(/^[\d\s×xX\-\.]+/, '').trim();
+          if (nm.length > 2) itensCnt[nm] = (itensCnt[nm] || 0) + 1;
+        });
+      });
+      const topItens = Object.entries(itensCnt).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const critEst  = est.filter(e => e.quantidade < (e.minimo || 0));
+
+      const pgtos = {};
+      conc.forEach(p => { if(p.pagamento) pgtos[p.pagamento] = (pgtos[p.pagamento] || 0) + 1; });
+
+      return { peds, conc, canc, rec, tick, conv, topItens, critEst, pgtos, card };
+    } catch(e) { return null; }
+  }
+
+  // ── Coleta dados do agente ──
+  async function getDadosAgente() {
+    const supaUrl = SESSION?.supabase_url || localStorage.getItem('sb_url') || '';
+    const supaKey = SESSION?.supabase_key || localStorage.getItem('sb_key') || '';
+    if (!supaUrl || !supaKey || !slug) return null;
+    try {
+      const dias = 30;
+      const inicio = new Date(); inicio.setDate(inicio.getDate() - dias);
+      const headers = { apikey: supaKey, Authorization: 'Bearer ' + supaKey };
+      const r = await fetch(`${supaUrl}/rest/v1/mensagens_webhook?slug=eq.${encodeURIComponent(slug)}&criado_em=gte.${inicio.toISOString()}&order=criado_em.asc`, { headers });
+      if (!r.ok) return null;
+      const msgs = await r.json();
+      const total   = msgs.length;
+      const iaCount = msgs.filter(m => m.ai_respondeu).length;
+      const humCount= msgs.filter(m => !m.ai_respondeu).length;
+      const contatos= [...new Set(msgs.map(m => m.from_number))].length;
+      const taxaIA  = total > 0 ? Math.round(iaCount/total*100) : 0;
+      const slug2   = SESSION?.slug || 'default';
+      const treinos = JSON.parse(localStorage.getItem('burgerops_treinos_'+slug2) || '[]');
+      return { total, iaCount, humCount, contatos, taxaIA, treinos };
+    } catch(e) { return null; }
+  }
+
+  toast('⏳ Gerando PDF...', 'success');
+
+  const dadosEmp   = tipo === 'empresa' || tipo === 'ambos' ? await getDadosEmpresa() : null;
+  const dadosAgente= tipo === 'agente'  || tipo === 'ambos' ? await getDadosAgente()  : null;
+
+  // ── Monta HTML do PDF ──
+  const rowStyle = 'display:flex;gap:16px;margin-bottom:16px;';
+  const cardStyle= 'flex:1;background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:16px;';
+  const kpiStyle = 'font-size:24px;font-weight:900;margin:8px 0 2px;';
+  const lblStyle = 'font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;';
+  const secStyle = 'margin-bottom:20px;';
+  const thStyle  = 'padding:8px 10px;text-align:left;background:#222;color:#f5a623;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #333;';
+  const tdStyle  = 'padding:7px 10px;font-size:12px;border-bottom:1px solid #1e1e1e;';
+
+  let body = '';
+
+  // Header
+  body += `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #f5a623;">
+      <div>
+        <div style="font-size:28px;font-weight:900;color:#f5a623;letter-spacing:1px;">🍔 ${empresa}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px;">Relatório gerado em ${agora}</div>
+        ${slug ? `<div style="font-size:11px;color:#666;">Slug: ${slug}</div>` : ''}
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:#888;">BurgerOps Pro</div>
+        <div style="font-size:10px;color:#555;">Dashboard ${tipo === 'agente' ? 'Agente IA' : tipo === 'empresa' ? 'da Empresa' : 'Completo'}</div>
+      </div>
+    </div>`;
+
+  // ── Seção empresa ──
+  if (dadosEmp) {
+    const { peds, conc, canc, rec, tick, conv, topItens, critEst, pgtos } = dadosEmp;
+    body += `<div style="${secStyle}">
+      <div style="font-size:16px;font-weight:900;color:#f5a623;margin-bottom:12px;display:flex;align-items:center;gap:8px;">📊 Resumo da Empresa</div>
+      <div style="${rowStyle}">
+        <div style="${cardStyle}"><div style="${lblStyle}">Receita Total</div><div style="${kpiStyle}color:#2dc653;">R$ ${rec.toFixed(2)}</div><div style="font-size:11px;color:#888;">${conc.length} pedidos concluídos</div></div>
+        <div style="${cardStyle}"><div style="${lblStyle}">Total de Pedidos</div><div style="${kpiStyle}color:#f5a623;">${peds.length}</div><div style="font-size:11px;color:#888;">${canc.length} cancelados</div></div>
+        <div style="${cardStyle}"><div style="${lblStyle}">Ticket Médio</div><div style="${kpiStyle}color:#3a86ff;">R$ ${tick.toFixed(2)}</div></div>
+        <div style="${cardStyle}"><div style="${lblStyle}">Taxa de Conversão</div><div style="${kpiStyle}color:#00b4d8;">${conv}%</div><div style="font-size:11px;color:#888;">pedidos → concluídos</div></div>
+      </div>`;
+
+    // Formas de pagamento
+    const pgKeys = Object.entries(pgtos).sort((a,b)=>b[1]-a[1]);
+    if (pgKeys.length) {
+      body += `<div style="margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#ccc;">💳 Formas de Pagamento</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          ${pgKeys.map(([k,v]) => `<div style="background:#222;border:1px solid #333;border-radius:8px;padding:8px 14px;font-size:12px;"><b style="color:#f5a623;">${v}x</b> ${k} <span style="color:#888;">(${conc.length?Math.round(v/conc.length*100):0}%)</span></div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    // Top itens
+    if (topItens.length) {
+      body += `<div style="margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#ccc;">🔥 Top Itens Mais Pedidos</div>
+        <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;overflow:hidden;">
+          <tr><th style="${thStyle}">#</th><th style="${thStyle}">Item</th><th style="${thStyle}">Qtd Vendida</th><th style="${thStyle}">Participação</th></tr>
+          ${topItens.map(([nm,cnt],i) => `<tr style="background:${i%2===0?'#111':'#161616'}">
+            <td style="${tdStyle}color:#f5a623;font-weight:900;">${i+1}</td>
+            <td style="${tdStyle}">${nm}</td>
+            <td style="${tdStyle}font-weight:700;">${cnt}</td>
+            <td style="${tdStyle}color:#888;">${topItens[0][1]?Math.round(cnt/topItens[0][1]*100):0}%</td>
+          </tr>`).join('')}
+        </table>
+      </div>`;
+    }
+
+    // Estoque crítico
+    if (critEst.length) {
+      body += `<div style="background:rgba(230,57,70,.08);border:1px solid rgba(230,57,70,.3);border-radius:8px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:800;color:#e63946;margin-bottom:8px;">⚠️ Estoque Crítico (${critEst.length} itens)</div>
+        ${critEst.map(e => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(230,57,70,.1);">
+          <span>${e.nome}</span><span style="color:#e63946;font-weight:700;">${e.quantidade} / mín ${e.minimo}</span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    body += `</div>`;
+  }
+
+  // ── Seção agente ──
+  if (dadosAgente) {
+    const { total, iaCount, humCount, contatos, taxaIA, treinos } = dadosAgente;
+    body += `<div style="${secStyle}">
+      <div style="font-size:16px;font-weight:900;color:#3a86ff;margin-bottom:12px;">🤖 Dashboard do Agente IA (últimos 30 dias)</div>
+      <div style="${rowStyle}">
+        <div style="${cardStyle}"><div style="${lblStyle}">Total de Mensagens</div><div style="${kpiStyle}color:#f5a623;">${total}</div></div>
+        <div style="${cardStyle}"><div style="${lblStyle}">Respondidas pela IA</div><div style="${kpiStyle}color:#3a86ff;">${iaCount}</div></div>
+        <div style="${cardStyle}"><div style="${lblStyle}">Intervenções Humanas</div><div style="${kpiStyle}color:#e63946;">${humCount}</div></div>
+        <div style="${cardStyle}"><div style="${lblStyle}">Contatos Únicos</div><div style="${kpiStyle}color:#2dc653;">${contatos}</div></div>
+      </div>
+      <div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:10px;color:#ccc;">📈 Taxa de Resolução IA: <span style="color:#3a86ff;">${taxaIA}%</span></div>
+        <div style="height:12px;background:#2a2a2a;border-radius:6px;overflow:hidden;">
+          <div style="height:100%;width:${taxaIA}%;background:linear-gradient(90deg,#3a86ff,#00b4d8);border-radius:6px;"></div>
+        </div>
+      </div>`;
+
+    // Treinamentos cadastrados
+    if (treinos.length) {
+      const tiposMap = { texto:'📝', website:'🔗', video:'📹', documento:'📄', imagem:'🖼️', audio:'🎵' };
+      const porTipo = {};
+      treinos.forEach(t => { porTipo[t.tipo] = (porTipo[t.tipo] || 0) + 1; });
+      body += `<div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:10px;color:#ccc;">📚 Base de Treinamentos (${treinos.length} itens)</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+          ${Object.entries(porTipo).map(([tp,cnt]) => `<div style="background:#222;border:1px solid #333;border-radius:8px;padding:6px 12px;font-size:12px;">${tiposMap[tp]||'📝'} ${tp}: <b style="color:#f5a623;">${cnt}</b></div>`).join('')}
+        </div>
+        <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;overflow:hidden;">
+          <tr><th style="${thStyle}">Tipo</th><th style="${thStyle}">Conteúdo</th><th style="${thStyle}">Status</th></tr>
+          ${treinos.slice(0,20).map((t,i) => `<tr style="background:${i%2===0?'#111':'#161616'}">
+            <td style="${tdStyle}">${tiposMap[t.tipo]||'📝'} ${t.tipo}</td>
+            <td style="${tdStyle};max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.conteudo}</td>
+            <td style="${tdStyle}"><span style="background:rgba(45,198,83,.15);color:#2dc653;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">${t.status}</span></td>
+          </tr>`).join('')}
+          ${treinos.length > 20 ? `<tr><td colspan="3" style="${tdStyle}color:#888;text-align:center;">+ ${treinos.length-20} outros treinamentos</td></tr>` : ''}
+        </table>
+      </div>`;
+    }
+
+    // Config do agente
+    const cfg = (() => { try { return JSON.parse(localStorage.getItem('burgerops_agente_'+slug)||'{}'); } catch(e){ return {}; }})();
+    if (cfg.nome) {
+      body += `<div style="background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#ccc;">⚙️ Configuração do Agente</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+          <div><span style="color:#888;">Nome:</span> <b>${cfg.nome}</b></div>
+          <div><span style="color:#888;">Tom:</span> <b>${cfg.tom||'—'}</b></div>
+          <div><span style="color:#888;">Modelo:</span> <b>${cfg.modelo||'—'}</b></div>
+          <div><span style="color:#888;">Status:</span> <b style="color:${cfg.ativo?'#2dc653':'#e63946'}">${cfg.ativo?'ATIVO':'INATIVO'}</b></div>
+        </div>
+      </div>`;
+    }
+
+    body += `</div>`;
+  }
+
+  // Footer
+  body += `<div style="margin-top:24px;padding-top:12px;border-top:1px solid #333;text-align:center;font-size:10px;color:#555;">
+    BurgerOps Pro · Relatório gerado automaticamente em ${agora}
+  </div>`;
+
+  // ── Abre janela de impressão ──
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+    <meta charset="UTF-8">
+    <title>Relatório ${empresa} — ${agora}</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #0e0e0e; color: #f0f0f0; font-family: 'Segoe UI', Arial, sans-serif; padding: 32px; }
+      @media print {
+        body { background: #fff !important; color: #111 !important; padding: 16px; }
+        * { color: inherit !important; background: transparent !important; border-color: #ddd !important; }
+        .no-print { display: none !important; }
+      }
+    </style>
+  </head><body>
+    <div class="no-print" style="position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:999;">
+      <button onclick="window.print()" style="background:#f5a623;border:none;border-radius:8px;padding:10px 20px;font-weight:900;cursor:pointer;font-size:14px;">🖨️ Imprimir / Salvar PDF</button>
+      <button onclick="window.close()" style="background:#333;border:none;border-radius:8px;padding:10px 16px;color:#ccc;cursor:pointer;font-size:14px;">✕ Fechar</button>
+    </div>
+    ${body}
+    <script>setTimeout(() => window.print(), 800);<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 async function recarregarEmpresasSuperAdmin() {
@@ -3377,6 +3611,35 @@ async function gerarContexto() {
     }
 
   } catch(e) { ctx += `\n[Erro ao buscar dados: ${e.message}]\n`; }
+
+  // ── Treinamentos cadastrados ──
+  try {
+    const slug = SESSION?.slug || 'default';
+    const treinos = JSON.parse(localStorage.getItem('burgerops_treinos_' + slug) || '[]');
+    if (treinos.length > 0) {
+      const textos    = treinos.filter(t => t.tipo === 'texto');
+      const websites  = treinos.filter(t => t.tipo === 'website');
+      const videos    = treinos.filter(t => t.tipo === 'video');
+      const docs      = treinos.filter(t => t.tipo === 'documento');
+
+      if (textos.length) {
+        ctx += `\n=== BASE DE CONHECIMENTO ===\n`;
+        textos.forEach(t => { ctx += `• ${t.conteudo}\n`; });
+      }
+      if (websites.length) {
+        ctx += `\n=== WEBSITES DE REFERÊNCIA ===\n`;
+        websites.forEach(t => { ctx += `• ${t.conteudo}\n`; });
+      }
+      if (videos.length) {
+        ctx += `\n=== VÍDEOS DE REFERÊNCIA ===\n`;
+        videos.forEach(t => { ctx += `• ${t.conteudo}\n`; });
+      }
+      if (docs.length) {
+        ctx += `\n=== DOCUMENTOS DE REFERÊNCIA ===\n`;
+        docs.forEach(t => { ctx += `• ${t.conteudo}\n`; });
+      }
+    }
+  } catch(e) {}
 
   ctx += `\n=== INSTRUÇÃO ESPECIAL ===\nSempre responda em português. Use os dados acima para responder com precisão. Não invente pratos, preços ou status de pedidos que não estejam listados.`;
   return ctx;
@@ -4773,9 +5036,9 @@ function renderAgente() {
 
       <!-- Sub-tabs de treinamento -->
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;">
-        ${['Texto','Website','Vídeo','Documento'].map((t,i) => `
-          <button class="treino-tab${i===0?' treino-tab-active':''}" data-tab="${t.toLowerCase()}" onclick="switchTreinoTab('${t.toLowerCase()}')"
-            style="padding:10px 20px;background:none;border:none;${i===0?'border-bottom:2px solid var(--gold);color:var(--gold)':'border-bottom:2px solid transparent;color:var(--text2)'};font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;transition:all .2s;">${t}</button>`).join('')}
+        ${[['Texto','texto'],['Website','website'],['Vídeo','video'],['Documento','documento']].map(([label,key],i) => `
+          <button class="treino-tab${i===0?' treino-tab-active':''}" data-tab="${key}" onclick="switchTreinoTab('${key}')"
+            style="padding:10px 20px;background:none;border:none;${i===0?'border-bottom:2px solid var(--gold);color:var(--gold)':'border-bottom:2px solid transparent;color:var(--text2)'};font-family:'Nunito';font-weight:800;font-size:13px;cursor:pointer;transition:all .2s;">${label}</button>`).join('')}
       </div>
 
       <!-- Formulário Texto -->
@@ -4830,7 +5093,7 @@ function renderAgente() {
       </div>
 
       <!-- Formulário Vídeo -->
-      <div id="treino-panel-vídeo" class="treino-panel" style="display:none;">
+      <div id="treino-panel-video" class="treino-panel" style="display:none;">
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-weight:800;font-size:13px;">
             <span>📹</span> Novo treinamento via vídeo
@@ -4894,6 +5157,8 @@ function renderAgente() {
             <option value="90">Últimos 90 dias</option>
           </select>
           <button class="btn btn-outline btn-sm" onclick="renderDashboardAgente()">🔄 Atualizar</button>
+          <button class="btn btn-gold btn-sm" onclick="exportDashboardPDF('agente')">📑 PDF Agente</button>
+          <button class="btn btn-outline btn-sm" onclick="exportDashboardPDF('ambos')" style="border-color:var(--gold);color:var(--gold);">📊 PDF Completo</button>
         </div>
       </div>
 
@@ -4998,8 +5263,26 @@ let _dashChartDoughnut = null;
 async function renderDashboardAgente() {
   const dias = parseInt(document.getElementById('dash-periodo')?.value || 30);
   const slug = SESSION?.slug || '';
-  const supaUrl  = localStorage.getItem('sb_url')  || SESSION?.supabase_url  || '';
-  const supaKey  = localStorage.getItem('sb_key')  || SESSION?.supabase_key  || '';
+
+  // Lê credenciais Supabase de todas as fontes possíveis
+  const supaUrl = SESSION?.supabase_url || localStorage.getItem('sb_url') || localStorage.getItem('supabase_url') || '';
+  const supaKey = SESSION?.supabase_key || localStorage.getItem('sb_key') || localStorage.getItem('supabase_key') || '';
+
+  // Mostra aviso se Supabase não configurado
+  if (!supaUrl || !supaKey || !slug) {
+    const topEl = document.getElementById('dash-top-contatos');
+    const stEl  = document.getElementById('dash-status-resumo');
+    const msg   = '<div style="text-align:center;color:var(--text2);font-size:12px;padding:20px;">⚠️ Configure o Supabase nas configurações para ver os dados</div>';
+    if (topEl) topEl.innerHTML = msg;
+    if (stEl)  stEl.innerHTML  = msg;
+    ['dash-kpi-atendimentos','dash-kpi-ia','dash-kpi-humano','dash-kpi-contatos'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.innerHTML = '—';
+    });
+    ['dash-kpi-atendimentos-delta','dash-kpi-ia-delta','dash-kpi-humano-delta','dash-kpi-contatos-delta'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.innerHTML = '<span style="color:var(--text2)">Supabase não configurado</span>';
+    });
+    return;
+  }
 
   // ── Gerar datas ──
   const hoje = new Date();
