@@ -1248,6 +1248,8 @@ function abrirPainel() {
   carregarCfgAgente();
   const bIA = document.getElementById('badge-ia');
   if (bIA) bIA.style.display = agenteCfg.ativo ? 'inline-block' : 'none';
+  // Pré-carrega treinamentos do Supabase em background
+  carregarTreinamentosSupabase().catch(() => {});
 }
 
 // ── PERMISSÕES DE INTERFACE ───────────────────────────────────
@@ -3052,8 +3054,8 @@ async function exportDashboardPDF(tipo, filtro) {
       const humCount= msgs.filter(m => !m.ai_respondeu).length;
       const contatos= [...new Set(msgs.map(m => m.from_number))].length;
       const taxaIA  = total > 0 ? Math.round(iaCount/total*100) : 0;
-      const slug2   = SESSION?.slug || 'default';
-      const treinos = JSON.parse(localStorage.getItem('burgerops_treinos_'+slug2) || '[]');
+      let treinos = [];
+      try { treinos = await sb.select('treinamentos', `slug=eq.${slug}&order=tipo,criado_em.asc`); } catch(e) {}
       return { total, iaCount, humCount, contatos, taxaIA, treinos };
     } catch(e) { return null; }
   }
@@ -3307,8 +3309,8 @@ function renderConfig() {
     </div>` : '';
 
   const slugKey = SESSION?.slug || 'default';
-  const treinos = (() => { try { return JSON.parse(localStorage.getItem('burgerops_treinos_'+slugKey)||'[]'); } catch(e){ return []; }})();
   const prefs = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slugKey)||'{}'); } catch(e){ return {}; }})();
+  const treinos = treinamentosData; // já carregado do Supabase
 
   c.innerHTML = `
     ${superAdminPanel}
@@ -3690,15 +3692,14 @@ async function gerarContexto() {
 
   } catch(e) { ctx += `\n[Erro ao buscar dados: ${e.message}]\n`; }
 
-  // ── Treinamentos cadastrados ──
+  // ── Treinamentos do Supabase ──
   try {
-    const slugKey = SESSION?.slug || 'default';
-    const treinos = JSON.parse(localStorage.getItem('burgerops_treinos_' + slugKey) || '[]');
+    const treinos = await sb.select('treinamentos', `slug=eq.${slug}&order=tipo,criado_em.asc`);
     if (treinos.length > 0) {
-      const textos    = treinos.filter(t => t.tipo === 'texto');
-      const websites  = treinos.filter(t => t.tipo === 'website');
-      const videos    = treinos.filter(t => t.tipo === 'video');
-      const docs      = treinos.filter(t => t.tipo === 'documento');
+      const textos   = treinos.filter(t => t.tipo === 'texto');
+      const websites = treinos.filter(t => t.tipo === 'website');
+      const videos   = treinos.filter(t => t.tipo === 'video');
+      const docs     = treinos.filter(t => t.tipo === 'documento');
 
       if (textos.length) {
         ctx += `\n=== BASE DE CONHECIMENTO (TREINAMENTOS) ===\n`;
@@ -3713,11 +3714,11 @@ async function gerarContexto() {
         videos.forEach(t => { ctx += `• ${t.conteudo}\n`; });
       }
       if (docs.length) {
-        ctx += `\n=== DOCUMENTOS DE REFERÊNCIA ===\n`;
-        docs.forEach(t => { ctx += `• ${t.conteudo}\n`; });
+        ctx += `\n=== DOCUMENTOS / ARQUIVOS ===\n`;
+        docs.forEach(t => { ctx += `• ${t.arquivo ? '['+t.arquivo+'] ' : ''}${t.conteudo}\n`; });
       }
     }
-  } catch(e) {}
+  } catch(e) { /* tabela pode não existir ainda */ }
 
   // ── Preferências do Agente ──
   try {
@@ -3833,7 +3834,7 @@ window.BurgerOpsAPI = {
 function gerarPayloadN8n() {
   const slug = SESSION?.slug || 'default';
   const prefs = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slug)||'{}'); } catch(e){ return {}; }})();
-  const treinos = (() => { try { return JSON.parse(localStorage.getItem('burgerops_treinos_'+slug)||'[]'); } catch(e){ return []; }})();
+  const treinos = treinamentosData; // carregados do Supabase
   const cfg = { ...agenteCfg }; delete cfg.apiKey; delete cfg.googleTtsKey;
 
   return JSON.stringify({
@@ -4250,7 +4251,7 @@ function renderAgente() {
           <div id="ctx-status-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
             ${(() => {
               const slug = SESSION?.slug || 'default';
-              const treinos = (() => { try { return JSON.parse(localStorage.getItem('burgerops_treinos_'+slug)||'[]'); } catch(e){ return []; }})();
+              const treinos = treinamentosData; // carregados do Supabase
               const prefs = (() => { try { return JSON.parse(localStorage.getItem('burgerops_prefs_'+slug)||'{}'); } catch(e){ return {}; }})();
               const chips = [
                 { label: `📚 ${treinos.length} treinamentos`, ok: treinos.length > 0 },
@@ -5261,8 +5262,15 @@ function renderAgente() {
   <div class="ai-tab-panel" id="panel-treinamentos">
     <div style="max-width:900px;margin:0 auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-        <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;">📚 Treinamentos</div>
-        <input class="input-field" id="treino-busca" placeholder="🔍 Buscar treinamento..." style="min-width:240px;" oninput="filtrarTreinamentos(this.value)">
+        <div>
+          <div style="font-family:'Bebas Neue';font-size:20px;color:var(--gold);letter-spacing:1px;">📚 Treinamentos</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;">💾 Salvo no Supabase — disponível para o agente em tempo real</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input class="input-field" id="treino-busca" placeholder="🔍 Buscar treinamento..." style="min-width:200px;" oninput="filtrarTreinamentos(this.value)">
+          <button class="btn btn-outline btn-sm" onclick="mostrarSQLTreinamentos()" title="Gerar tabela no Supabase">🗄️ SQL</button>
+          <button class="btn btn-outline btn-sm" onclick="renderTreinoLista()" title="Recarregar do Supabase">🔄</button>
+        </div>
       </div>
 
       <!-- Sub-tabs de treinamento -->
@@ -6248,6 +6256,9 @@ function removerIntencao(id) {
 }
 
 // ══ TREINAMENTOS ══
+// ============================================================
+//  TREINAMENTOS — Supabase como fonte de dados
+// ============================================================
 let treinamentosData = [];
 let treinoPage = 1;
 let treinoPageSize = 7;
@@ -6264,68 +6275,185 @@ function switchTreinoTab(tab) {
   if (panel) panel.style.display = 'block';
 }
 
-function cadastrarTreinoTexto() {
+// ── Salva no Supabase ──────────────────────────────────────
+async function salvarTreinoSupabase(item) {
+  const slug = SESSION?.slug || '';
+  try {
+    const inserted = await sb.insert('treinamentos', {
+      slug,
+      tipo:      item.tipo,
+      conteudo:  item.conteudo,
+      arquivo:   item.arquivo || null,
+      status:    'Treinado',
+      criado_em: new Date().toISOString()
+    });
+    // Retorna o id gerado pelo banco
+    return Array.isArray(inserted) ? inserted[0]?.id : inserted?.id;
+  } catch(e) {
+    console.error('Erro ao salvar treinamento:', e);
+    toast('❌ Erro ao salvar no Supabase: ' + e.message, 'error');
+    return null;
+  }
+}
+
+async function atualizarTreinoSupabase(id, conteudo) {
+  try {
+    await sb.update('treinamentos', id, { conteudo, status: 'Treinado' });
+  } catch(e) {
+    toast('❌ Erro ao atualizar treinamento: ' + e.message, 'error');
+    throw e;
+  }
+}
+
+async function excluirTreinoSupabase(id) {
+  try {
+    await sb.del('treinamentos', id);
+  } catch(e) {
+    toast('❌ Erro ao excluir treinamento: ' + e.message, 'error');
+    throw e;
+  }
+}
+
+// ── Carrega do Supabase ────────────────────────────────────
+async function carregarTreinamentosSupabase() {
+  const slug = SESSION?.slug || '';
+  try {
+    const rows = await sb.select('treinamentos', `slug=eq.${slug}&order=criado_em.desc`);
+    treinamentosData = rows.map(r => ({
+      id:        r.id,
+      tipo:      r.tipo,
+      conteudo:  r.conteudo,
+      arquivo:   r.arquivo || null,
+      status:    r.status || 'Treinado',
+      criadoEm:  r.criado_em
+    }));
+  } catch(e) {
+    // Tabela pode ainda não existir — mostra aviso
+    const cont = document.getElementById('treino-lista-geral');
+    if (cont) cont.innerHTML = `
+      <div style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:20px;margin-bottom:8px;">⚠️</div>
+        <div style="font-weight:800;font-size:13px;color:var(--gold);margin-bottom:6px;">Tabela "treinamentos" não encontrada</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Execute o SQL abaixo no seu Supabase para criar a tabela:</div>
+        <button onclick="mostrarSQLTreinamentos()" class="btn btn-gold btn-sm">📋 Ver SQL para criar tabela</button>
+      </div>`;
+    treinamentosData = [];
+  }
+}
+
+function mostrarSQLTreinamentos() {
+  const sql = `CREATE TABLE IF NOT EXISTS treinamentos (
+  id         BIGSERIAL PRIMARY KEY,
+  slug       TEXT        NOT NULL,
+  tipo       TEXT        NOT NULL, -- 'texto' | 'website' | 'video' | 'documento'
+  conteudo   TEXT        NOT NULL,
+  arquivo    TEXT,
+  status     TEXT        NOT NULL DEFAULT 'Treinado',
+  criado_em  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_treinamentos_slug ON treinamentos(slug);
+CREATE INDEX IF NOT EXISTS idx_treinamentos_tipo ON treinamentos(slug, tipo);`;
+
+  const div = document.createElement('div');
+  div.className = 'modal-bg';
+  div.style.zIndex = '1500';
+  div.onclick = e => { if(e.target===div) div.remove(); };
+  div.innerHTML = `
+    <div class="modal" style="width:600px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-weight:900;font-size:17px;">📋 SQL — Criar Tabela de Treinamentos</div>
+        <button onclick="this.closest('.modal-bg').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">
+        Cole esse SQL no <b>SQL Editor</b> do seu Supabase e execute:
+      </div>
+      <pre style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:12px;overflow-x:auto;white-space:pre-wrap;color:var(--cyan);">${sql}</pre>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button onclick="navigator.clipboard.writeText(document.querySelector('.modal pre').textContent);toast('✅ SQL copiado!','success')" class="btn btn-outline btn-sm">📋 Copiar</button>
+        <button onclick="this.closest('.modal-bg').remove()" class="btn btn-gold btn-sm">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  setTimeout(() => div.classList.add('open'), 10);
+}
+
+// ── Cadastrar ──────────────────────────────────────────────
+async function cadastrarTreinoTexto() {
   const inp = document.getElementById('treino-texto-input');
   const val = inp?.value.trim();
   if (!val) return;
-  treinamentosData.unshift({ id: Date.now(), tipo: 'texto', conteudo: val, status: 'Treinado', criadoEm: new Date() });
+  const btn = document.querySelector('button[onclick="cadastrarTreinoTexto()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  const id = await salvarTreinoSupabase({ tipo: 'texto', conteudo: val });
+  if (btn) { btn.disabled = false; btn.textContent = 'Cadastrar'; }
+  if (!id) return;
   inp.value = '';
   document.getElementById('treino-texto-count').textContent = '0/1028';
-  salvarTreinamentosLocal();
-  renderTreinoLista();
-  toast('✅ Treinamento cadastrado!', 'success');
+  await renderTreinoLista();
+  toast('✅ Treinamento salvo no Supabase!', 'success');
 }
 
-function cadastrarTreinoWebsite() {
+async function cadastrarTreinoWebsite() {
   const inp = document.getElementById('treino-website-input');
   const val = inp?.value.trim();
   if (!val) { toast('Cole a URL do website!', 'error'); return; }
-  treinamentosData.unshift({ id: Date.now(), tipo: 'website', conteudo: val, status: 'Treinado', criadoEm: new Date() });
+  const id = await salvarTreinoSupabase({ tipo: 'website', conteudo: val });
+  if (!id) return;
   inp.value = '';
-  salvarTreinamentosLocal();
-  renderTreinoLista();
-  toast('✅ Website adicionado ao treinamento!', 'success');
+  await renderTreinoLista();
+  toast('✅ Website salvo no Supabase!', 'success');
 }
 
-function cadastrarTreinoVideo() {
+async function cadastrarTreinoVideo() {
   const inp = document.getElementById('treino-video-input');
   const val = inp?.value.trim();
   if (!val) { toast('Cole a URL do vídeo!', 'error'); return; }
-  treinamentosData.unshift({ id: Date.now(), tipo: 'video', conteudo: val, status: 'Treinado', criadoEm: new Date() });
+  const id = await salvarTreinoSupabase({ tipo: 'video', conteudo: val });
+  if (!id) return;
   inp.value = '';
-  salvarTreinamentosLocal();
-  renderTreinoLista();
-  toast('✅ Vídeo adicionado ao treinamento!', 'success');
+  await renderTreinoLista();
+  toast('✅ Vídeo salvo no Supabase!', 'success');
 }
 
-function cadastrarTreinoDoc(input) {
+async function cadastrarTreinoDoc(input) {
   const file = input?.files?.[0];
   if (!file) return;
-  treinamentosData.unshift({ id: Date.now(), tipo: 'documento', conteudo: file.name, status: 'Treinado', criadoEm: new Date() });
-  salvarTreinamentosLocal();
-  renderTreinoLista();
-  toast(`✅ Documento "${file.name}" adicionado!`, 'success');
+  // Lê o texto do arquivo para salvar o conteúdo real
+  const lerTexto = () => new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = () => res(null);
+    // PDF/doc sem texto legível → salva apenas nome
+    if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+      r.readAsText(file);
+    } else {
+      res(null);
+    }
+  });
+  const texto = await lerTexto();
+  const conteudo = texto ? texto.substring(0, 4000) : `[Arquivo: ${file.name}]`;
+  const id = await salvarTreinoSupabase({ tipo: 'documento', conteudo, arquivo: file.name });
+  if (!id) return;
+  await renderTreinoLista();
+  toast(`✅ Documento "${file.name}" salvo no Supabase!`, 'success');
 }
 
-function salvarTreinamentosLocal() {
-  const slug = SESSION?.slug || 'default';
-  localStorage.setItem('burgerops_treinos_'+slug, JSON.stringify(treinamentosData));
-}
-
-function carregarTreinamentosLocal() {
-  const slug = SESSION?.slug || 'default';
-  const s = localStorage.getItem('burgerops_treinos_'+slug);
-  if (s) { try { treinamentosData = JSON.parse(s); } catch(e){} }
-}
-
+// ── Filtro e Render ────────────────────────────────────────
 function filtrarTreinamentos(q) {
   treinoBusca = q.toLowerCase();
   treinoPage = 1;
-  renderTreinoLista();
+  renderTreinoListaFiltrada();
 }
 
-function renderTreinoLista() {
-  carregarTreinamentosLocal();
+async function renderTreinoLista() {
+  const cont = document.getElementById('treino-lista-geral');
+  if (cont) cont.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2);font-size:13px;"><div class="spinner" style="margin:0 auto 8px;"></div>Carregando do Supabase...</div>';
+  await carregarTreinamentosSupabase();
+  renderTreinoListaFiltrada();
+}
+
+function renderTreinoListaFiltrada() {
   const cont = document.getElementById('treino-lista-geral');
   const pag  = document.getElementById('treino-paginacao');
   if (!cont) return;
@@ -6346,8 +6474,9 @@ function renderTreinoLista() {
       <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;position:relative;" id="treino-item-${t.id}">
         <span style="font-size:20px;">${tipoIcone[t.tipo]||'📝'}</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="treino-conteudo-${t.id}">${t.conteudo}</div>
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.conteudo.replace(/"/g,'&quot;')}">${t.conteudo}</div>
           ${t.arquivo ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;">📎 ${t.arquivo}</div>` : ''}
+          <div style="font-size:10px;color:var(--text2);margin-top:2px;">${t.criadoEm ? new Date(t.criadoEm).toLocaleString('pt-BR') : ''}</div>
         </div>
         <span class="badge badge-green" style="font-size:10px;">${t.status}</span>
         <div style="position:relative;">
@@ -6361,18 +6490,17 @@ function renderTreinoLista() {
       </div>`).join('');
   }
 
-  // Paginação
   if (pag) {
     let btns = '';
     for (let i=1;i<=pages;i++) {
-      btns += `<button onclick="treinoPage=${i};renderTreinoLista()" style="width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;font-size:13px;font-weight:800;font-family:'Nunito';${i===treinoPage?'background:var(--gold);color:#000':'background:var(--bg3);color:var(--text2)'};">${i}</button>`;
+      btns += `<button onclick="treinoPage=${i};renderTreinoListaFiltrada()" style="width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;font-size:13px;font-weight:800;font-family:'Nunito';${i===treinoPage?'background:var(--gold);color:#000':'background:var(--bg3);color:var(--text2)'};">${i}</button>`;
     }
-    if (pages > 1) btns += `<button onclick="if(treinoPage<${pages}){treinoPage++;renderTreinoLista();}" style="background:var(--bg3);border:none;color:var(--text2);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;">»</button>`;
+    if (pages > 1) btns += `<button onclick="if(treinoPage<${pages}){treinoPage++;renderTreinoListaFiltrada();}" style="background:var(--bg3);border:none;color:var(--text2);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;">»</button>`;
     pag.innerHTML = btns;
   }
 }
 
-// Fecha qualquer menu de treino aberto ao clicar fora
+// ── Menus contextuais ──────────────────────────────────────
 document.addEventListener('click', function(e) {
   if (!e.target.closest('[id^="treino-menu-"]') && !e.target.closest('button[onclick*="toggleTreinoMenu"]')) {
     document.querySelectorAll('[id^="treino-menu-"]').forEach(m => m.style.display = 'none');
@@ -6381,7 +6509,6 @@ document.addEventListener('click', function(e) {
 
 function toggleTreinoMenu(e, id) {
   e.stopPropagation();
-  // Fecha todos os outros
   document.querySelectorAll('[id^="treino-menu-"]').forEach(m => {
     if (m.id !== 'treino-menu-'+id) m.style.display = 'none';
   });
@@ -6394,7 +6521,6 @@ function editarTreino(id) {
   const item = treinamentosData.find(t => t.id === id);
   if (!item) return;
 
-  // Cria modal de edição inline
   const existing = document.getElementById('modal-editar-treino');
   if (existing) existing.remove();
 
@@ -6404,37 +6530,42 @@ function editarTreino(id) {
   div.style.zIndex = '1400';
   div.onclick = function(e) { if(e.target===this) this.remove(); };
   div.innerHTML = `
-    <div class="modal" style="width:500px;">
+    <div class="modal" style="width:520px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
         <div style="font-weight:900;font-size:17px;">✏️ Editar treinamento</div>
         <button onclick="this.closest('.modal-bg').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);">✕</button>
       </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">Tipo: <b>${item.tipo}</b>${item.arquivo ? ' · Arquivo: <b>'+item.arquivo+'</b>' : ''}</div>
       <div class="form-group">
         <label>Conteúdo</label>
-        <textarea id="editar-treino-input" class="input-field" rows="4" style="width:100%;resize:none;" maxlength="1028">${item.conteudo}</textarea>
-        <div style="text-align:right;font-size:11px;color:var(--text2);margin-top:4px;" id="editar-treino-count">${item.conteudo.length}/1028</div>
+        <textarea id="editar-treino-input" class="input-field" rows="5" style="width:100%;resize:vertical;">${item.conteudo}</textarea>
+        <div style="text-align:right;font-size:11px;color:var(--text2);margin-top:4px;" id="editar-treino-count">${item.conteudo.length} caracteres</div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
         <button onclick="this.closest('.modal-bg').remove()" class="btn btn-outline btn-sm">Cancelar</button>
-        <button onclick="salvarEdicaoTreino(${id})" class="btn btn-gold btn-sm">💾 Salvar</button>
+        <button id="btn-salvar-edicao-treino" onclick="salvarEdicaoTreino(${id})" class="btn btn-gold btn-sm">💾 Salvar no Supabase</button>
       </div>
     </div>`;
   div.querySelector('#editar-treino-input').addEventListener('input', function() {
-    document.getElementById('editar-treino-count').textContent = this.value.length + '/1028';
+    document.getElementById('editar-treino-count').textContent = this.value.length + ' caracteres';
   });
   document.body.appendChild(div);
   setTimeout(() => div.classList.add('open'), 10);
 }
 
-function salvarEdicaoTreino(id) {
+async function salvarEdicaoTreino(id) {
   const val = document.getElementById('editar-treino-input')?.value.trim();
   if (!val) { toast('O conteúdo não pode ser vazio!', 'error'); return; }
-  const item = treinamentosData.find(t => t.id === id);
-  if (item) item.conteudo = val;
-  salvarTreinamentosLocal();
-  renderTreinoLista();
-  document.getElementById('modal-editar-treino')?.remove();
-  toast('✅ Treinamento atualizado!', 'success');
+  const btn = document.getElementById('btn-salvar-edicao-treino');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  try {
+    await atualizarTreinoSupabase(id, val);
+    document.getElementById('modal-editar-treino')?.remove();
+    await renderTreinoLista();
+    toast('✅ Treinamento atualizado no Supabase!', 'success');
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar no Supabase'; }
+  }
 }
 
 function confirmarExcluirTreino(id) {
@@ -6455,46 +6586,37 @@ function confirmarExcluirTreino(id) {
       <div style="font-size:40px;margin-bottom:12px;">🗑️</div>
       <div style="font-weight:900;font-size:17px;margin-bottom:8px;">Excluir treinamento?</div>
       <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6;">
-        Tem certeza que deseja excluir este treinamento?<br>
+        Essa ação é <b style="color:var(--red)">permanente</b> — o dado será removido do Supabase.<br>
         <strong style="color:var(--text);">"${item.conteudo.substring(0,60)}${item.conteudo.length>60?'...':''}"</strong>
       </div>
       <div style="display:flex;gap:10px;justify-content:center;">
         <button onclick="this.closest('.modal-bg').remove()" class="btn btn-outline" style="min-width:110px;">Cancelar</button>
-        <button onclick="removerTreino(${id})" class="btn btn-red" style="min-width:110px;">🗑️ Excluir</button>
+        <button id="btn-confirmar-excluir-treino" onclick="removerTreino(${id})" class="btn btn-red" style="min-width:110px;">🗑️ Excluir</button>
       </div>
     </div>`;
   document.body.appendChild(div);
   setTimeout(() => div.classList.add('open'), 10);
 }
 
-function removerTreino(id) {
-  document.getElementById('modal-confirmar-excluir-treino')?.remove();
-  treinamentosData = treinamentosData.filter(t => t.id !== id);
-  salvarTreinamentosLocal();
-  renderTreinoLista();
-  toast('🗑️ Treinamento removido.', 'success');
+async function removerTreino(id) {
+  const btn = document.getElementById('btn-confirmar-excluir-treino');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Excluindo...'; }
+  try {
+    await excluirTreinoSupabase(id);
+    document.getElementById('modal-confirmar-excluir-treino')?.remove();
+    await renderTreinoLista();
+    toast('🗑️ Treinamento removido do Supabase.', 'success');
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑️ Excluir'; }
+  }
 }
 
 function anexarArquivoTreino(input, tipo) {
   const file = input?.files?.[0];
   if (!file) return;
-  const tipoLabel = { imagem:'🖼️ Imagem', video:'📹 Vídeo', audio:'🎵 Áudio', documento:'📄 Documento' };
-  const reader = new FileReader();
-  reader.onload = function() {
-    treinamentosData.unshift({
-      id: Date.now(),
-      tipo: tipo,
-      conteudo: `${tipoLabel[tipo] || tipo}: ${file.name}`,
-      arquivo: file.name,
-      status: 'Treinado',
-      criadoEm: new Date()
-    });
-    salvarTreinamentosLocal();
-    renderTreinoLista();
-    toast(`✅ ${file.name} adicionado ao treinamento!`, 'success');
-  };
-  reader.readAsDataURL(file);
-  input.value = ''; // Reset para permitir selecionar o mesmo arquivo novamente
+  // Delega para cadastrarTreinoDoc que já salva no Supabase
+  cadastrarTreinoDoc({ files: [file] });
+  input.value = '';
 }
 
 // ── INTERVENÇÃO HUMANA — estado global ───────────────────────
